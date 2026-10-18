@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #F1F5F9;
+  color: #1E293B;
+  margin: 0;
+  padding: 0;
+}
+
+.badge-arrears {
+  background-color: #FEF3C7;
+  color: #D97706;
+  font-weight: 700;
+}
+
+.badge-paid {
+  background-color: #DCFCE7;
+  color: #15803D;
+  font-weight: 700;
+}
+
+.badge-low-stock {
+  background-color: #FEE2E2;
+  color: #DC2626;
+  font-weight: 700;
+}
+
+.badge-in-stock {
+  background-color: #DCFCE7;
+  color: #16A34A;
+  font-weight: 700;
+}
+
+.sidebar-active {
+  background-color: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background-color: #FFFFFF !important; }
+}

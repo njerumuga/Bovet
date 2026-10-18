@@ -1,0 +1,23 @@
+[project]
+name = "bovet-backend"
+version = "0.1.0"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "gunicorn",
+    "sqlalchemy",
+    "psycopg[binary]",
+    "alembic",
+    "pydantic",
+    "pydantic-settings",
+    "argon2-cffi",
+    "pyjwt",
+    "slowapi",
+    "weasyprint",
+    "jinja2",
+    "python-multipart"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
