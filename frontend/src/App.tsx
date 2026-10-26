@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LoginView } from './features/auth/LoginView';
@@ -15,10 +16,11 @@ import { AddCustomerModal } from './features/customers/AddCustomerModal';
 import { CustomerHistoryModal } from './features/customers/CustomerHistoryModal';
 import { AddProductModal } from './features/products/AddProductModal';
 import { RestockModal } from './features/products/RestockModal';
-import { Customer, Invoice, Product, DashboardStats, ReportSummary, User } from './types';
+import { ReceiptModal } from './features/invoices/ReceiptModal';
+import { Customer, Invoice, Product, DashboardStats, ReportSummary, User, Receipt } from './types';
 import { apiFetch } from './api/client';
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 5 * 60 * 60 * 1000;
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -57,6 +59,7 @@ export const App: React.FC = () => {
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [restockProduct, setRestockProduct] = useState<Product | null>(null);
+  const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const loadData = async () => {
     try {
@@ -136,6 +139,22 @@ export const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
+    if (!currentUser) return;
+
+    const refreshToken = async () => {
+      try {
+        const response = await apiFetch<{ access_token: string }>('/auth/refresh', { method: 'POST' });
+        localStorage.setItem('token', response.access_token);
+      } catch {
+        // The normal API 401 handler remains responsible for ending an invalid session.
+      }
+    };
+
+    const refreshId = window.setInterval(refreshToken, 4 * 60 * 60 * 1000);
+    return () => window.clearInterval(refreshId);
+  }, [currentUser]);
+
+  useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
@@ -205,6 +224,8 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
+      <ReceiptModal receipt={receipt} onClose={() => setReceipt(null)} />
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header
@@ -217,6 +238,16 @@ export const App: React.FC = () => {
         />
 
         <main className="flex-1 overflow-y-auto p-8">
+          {currentTab !== 'dashboard' && (
+            <button
+              type="button"
+              onClick={() => setCurrentTab('dashboard')}
+              className="no-print mb-5 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </button>
+          )}
           {currentTab === 'dashboard' && (
             <DashboardView
               stats={stats}
@@ -234,7 +265,7 @@ export const App: React.FC = () => {
               onOpenNewSale={() => setIsNewSaleOpen(true)}
               onPreviewInvoice={(inv) => setPreviewInvoice(inv)}
               onOpenPayment={(inv) => setPaymentInvoice(inv)}
-              onViewReceipt={() => undefined}
+              onViewReceipt={setReceipt}
               onInvoiceUpdated={loadData}
             />
           )}
@@ -289,7 +320,10 @@ export const App: React.FC = () => {
       <PaymentModal
         invoice={paymentInvoice}
         onClose={() => setPaymentInvoice(null)}
-        onPaymentSuccess={loadData}
+        onPaymentSuccess={(generatedReceipt) => {
+          loadData();
+          if (generatedReceipt) setReceipt(generatedReceipt);
+        }}
       />
 
       <AddCustomerModal

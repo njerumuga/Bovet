@@ -17,9 +17,15 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
   if (!customer) return null;
 
   const customerInvoices = invoices.filter((i) => i.customer_id === customer.id);
+  const handlePrint = () => {
+    const previousTitle = document.title;
+    document.title = `Bovet Customer Statement ${customer.name} ${Date.now()}`;
+    window.print();
+    document.title = previousTitle;
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div className="print-document fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden my-8">
         {/* Header */}
         <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
@@ -103,7 +109,7 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
 
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl transition flex items-center space-x-1.5"
             >
               <Printer className="w-4 h-4" />

@@ -3,6 +3,7 @@ import { X, Plus, Trash2, ShoppingCart, AlertCircle, AlertTriangle, CheckCircle,
 import { Customer, Product, InvoiceLine } from '../../types';
 import { formatKsh } from '../../lib/utils';
 import { apiFetch } from '../../api/client';
+import { SearchableSelect } from '../../components/SearchableSelect';
 
 interface NewSaleModalProps {
   isOpen: boolean;
@@ -71,7 +72,8 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
     setLines(newLines);
   };
 
-  const handleQtyChange = (index: number, qty: number) => {
+  const handleQtyChange = (index: number, rawQty: string) => {
+    const qty = rawQty === '' ? 0 : Number(rawQty);
     const newLines = [...lines];
     newLines[index].qty_entered = qty;
     newLines[index].line_amount = qty * Number(newLines[index].unit_price);
@@ -119,6 +121,9 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
     setLoading(true);
 
     try {
+      if (amountPaid > 0 && paymentMethod !== 'Cash' && !referenceCode.trim()) {
+        throw new Error(`A payment reference code is required for ${paymentMethod}.`);
+      }
       await apiFetch('/invoices', {
         method: 'POST',
         body: JSON.stringify({
@@ -183,17 +188,14 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Select Customer / Farmer
               </label>
-              <select
+              <SearchableSelect
                 value={customerId}
-                onChange={(e) => setCustomerId(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {customers.filter((c) => c.status === 'active').map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.phone}) - {c.location} {Number(c.current_arrears_balance) > 0 ? `[Arrears: ${formatKsh(c.current_arrears_balance)}]` : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setCustomerId(Number(value))}
+                options={customers.filter((c) => c.status === 'active').map((c) => ({
+                  value: c.id,
+                  label: `${c.name} (${c.phone}) - ${c.location}${Number(c.current_arrears_balance) > 0 ? ` [Arrears: ${formatKsh(c.current_arrears_balance)}]` : ''}`,
+                }))}
+              />
             </div>
 
             <div>
@@ -235,17 +237,15 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                   <div key={idx} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
                     <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
                       <div className="flex-1 w-full">
-                        <select
+                        <SearchableSelect
                           value={line.product_id}
-                          onChange={(e) => handleProductChange(idx, Number(e.target.value))}
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        >
-                          {products.filter((p) => p.status === 'active').map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} ({p.category}) - Stock: {p.qty_on_hand} {p.base_unit}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => handleProductChange(idx, Number(value))}
+                          options={products.filter((p) => p.status === 'active').map((p) => ({
+                            value: p.id,
+                            label: `${p.name} (${p.category}) - Stock: ${p.qty_on_hand} ${p.base_unit}`,
+                          }))}
+                          className="w-full"
+                        />
                       </div>
 
                       {hasPack && (
@@ -275,19 +275,19 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                         </div>
                       )}
 
-                      <div className="w-24">
+                      <div className="w-24 min-w-[6rem] shrink-0">
                         <input
                           type="number"
                           min="0.1"
                           step="any"
-                          value={line.qty_entered}
-                          onChange={(e) => handleQtyChange(idx, Number(e.target.value))}
+                          value={line.qty_entered === 0 ? '' : line.qty_entered}
+                          onChange={(e) => handleQtyChange(idx, e.target.value)}
                           placeholder="Qty"
                           className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-center text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
 
-                      <div className="w-28">
+                      <div className="w-28 min-w-[7rem] shrink-0">
                         <input
                           type="number"
                           value={line.unit_price}
@@ -378,15 +378,15 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Payment Channel</label>
-                  <select
+                  <SearchableSelect
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
-                  >
-                    <option value="M-Pesa">M-Pesa (Paybill 247247)</option>
-                    <option value="Cash">Cash at Counter</option>
-                    <option value="Bank Transfer">Bank Deposit</option>
-                  </select>
+                    onChange={setPaymentMethod}
+                    options={[
+                      { value: 'M-Pesa', label: 'M-Pesa (Paybill 247247)' },
+                      { value: 'Cash', label: 'Cash at Counter' },
+                      { value: 'Bank Transfer', label: 'Bank Deposit' },
+                    ]}
+                  />
                 </div>
 
                 <div>
@@ -395,7 +395,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                     type="text"
                     value={referenceCode}
                     onChange={(e) => setReferenceCode(e.target.value)}
-                    placeholder="e.g. QJD928DKL"
+                    placeholder={amountPaid > 0 && paymentMethod !== 'Cash' ? 'Required e.g. QJD928DKL' : 'Optional'}
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                   />
                 </div>

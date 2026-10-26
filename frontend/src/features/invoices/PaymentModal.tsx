@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, DollarSign, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Invoice, Receipt } from '../../types';
 import { formatKsh } from '../../lib/utils';
 import { apiFetch } from '../../api/client';
+import { SearchableSelect } from '../../components/SearchableSelect';
 
 interface PaymentModalProps {
   invoice: Invoice | null;
@@ -15,9 +16,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   onPaymentSuccess,
 }) => {
-  if (!invoice) return null;
-
-  const [amount, setAmount] = useState<number>(Number(invoice.balance || 0));
+  const [amount, setAmount] = useState<number>(Number(invoice?.balance || 0));
   const [paymentMethod, setPaymentMethod] = useState<string>('M-Pesa');
   const [referenceCode, setReferenceCode] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
@@ -25,10 +24,26 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!invoice) return;
+    setAmount(Number(invoice.balance || 0));
+    setPaymentMethod('M-Pesa');
+    setReferenceCode('');
+    setNotes('');
+    setConfirmed(false);
+    setError(null);
+  }, [invoice]);
+
+  if (!invoice) return null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirmed) {
       setError("Please confirm payment verification on your phone before posting.");
+      return;
+    }
+    if (paymentMethod !== 'Cash' && !referenceCode.trim()) {
+      setError(`A payment reference code is required for ${paymentMethod}.`);
       return;
     }
     setError(null);
@@ -45,7 +60,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         }),
       });
 
-      const generatedReceipt: Receipt = res?.latest_receipt || {
+      const generatedReceipt: Receipt = res?.latest_receipt
+        ? {
+            ...res.latest_receipt,
+            amount_received: Number(res.latest_receipt.amount_received ?? res.latest_receipt.amount ?? amount),
+          }
+        : {
         receipt_no: `RCT-${invoice.id + 600}`,
         invoice_no: invoice.invoice_no,
         customer_name: invoice.customer_name || 'Customer',
@@ -58,7 +78,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         invoice_total: Number(invoice.total),
         remaining_balance: Math.max(0, Number(invoice.balance) - amount),
         notes: notes || `Settlement for ${invoice.invoice_no}`,
-      };
+          };
 
       onPaymentSuccess(generatedReceipt);
       onClose();
@@ -136,16 +156,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Channel
               </label>
-              <select
+              <SearchableSelect
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="M-Pesa">M-Pesa (Paybill 247247)</option>
-                <option value="Cash">Cash at Store</option>
-                <option value="Bank Transfer">Bank Wire</option>
-                <option value="Cheque">Bankers Cheque</option>
-              </select>
+                onChange={setPaymentMethod}
+                options={[
+                  { value: 'M-Pesa', label: 'M-Pesa (Paybill 247247)' },
+                  { value: 'Cash', label: 'Cash at Store' },
+                  { value: 'Bank Transfer', label: 'Bank Wire' },
+                  { value: 'Cheque', label: 'Bankers Cheque' },
+                ]}
+              />
             </div>
 
             <div>
@@ -156,7 +176,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="text"
                 value={referenceCode}
                 onChange={(e) => setReferenceCode(e.target.value)}
-                placeholder="e.g. QJD928DKL"
+                required={paymentMethod !== 'Cash'}
+                placeholder={paymentMethod === 'Cash' ? 'Optional for cash' : 'Required e.g. QJD928DKL'}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>

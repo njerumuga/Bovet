@@ -27,6 +27,38 @@ from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
+def normalize_payment_reference(value: Optional[str]) -> str:
+    return re.sub(r"[^a-z0-9]", "", (value or "").strip().lower())
+
+def validate_payment_reference(
+    payment_method: Optional[str],
+    reference_code: Optional[str],
+    db: Session,
+) -> Optional[str]:
+    method = (payment_method or "M-Pesa").strip().lower()
+    reference = (reference_code or "").strip()
+    if method != "cash" and not reference:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A payment reference code is required for {payment_method or 'this payment method'}.",
+        )
+    if not reference:
+        return None
+
+    normalized_reference = normalize_payment_reference(reference)
+    if not normalized_reference:
+        raise HTTPException(status_code=400, detail="Payment reference code cannot be empty.")
+
+    existing_payments = db.query(Payment.reference_code).filter(
+        Payment.reference_code.isnot(None)
+    ).all()
+    if any(normalize_payment_reference(row[0]) == normalized_reference for row in existing_payments):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment reference code '{reference}' is already used by another payment.",
+        )
+    return reference
+
 def format_receipt(pmt: Payment) -> ReceiptResponse:
     inv = pmt.invoice
     cust = pmt.customer
@@ -260,15 +292,9 @@ def create_invoice(
     if not req.lines:
         raise HTTPException(status_code=400, detail="Invoice must contain at least one product line.")
 
-    # Validate M-Pesa reference code uniqueness if paying immediately
-    if req.amount_paid and req.amount_paid > 0 and req.reference_code and req.reference_code.strip():
-        ref = req.reference_code.strip()
-        existing_ref = db.query(Payment).filter(Payment.reference_code.ilike(ref)).first()
-        if existing_ref:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Transaction reference '{ref}' was already used on Receipt #{existing_ref.receipt_no}."
-            )
+    payment_reference = None
+    if req.amount_paid and req.amount_paid > 0:
+        payment_reference = validate_payment_reference(req.payment_method, req.reference_code, db)
 
     subtotal = Decimal("0.00")
     line_objects = []
@@ -354,7 +380,7 @@ def create_invoice(
             payment_date=invoice.invoice_date,
             amount=amount_paid,
             payment_method=req.payment_method or "M-Pesa",
-            reference_code=req.reference_code.strip() if req.reference_code else None,
+            reference_code=payment_reference,
             notes=f"Immediate settlement for {invoice.invoice_no}",
             posted_by=current_user.id
         )
@@ -426,15 +452,7 @@ def post_payment(
     if payment_amt > inv.balance:
         raise HTTPException(status_code=400, detail="Payment exceeds the remaining invoice balance.")
 
-    # Check for duplicate transaction reference
-    if req.reference_code and req.reference_code.strip():
-        ref = req.reference_code.strip()
-        existing_ref = db.query(Payment).filter(Payment.reference_code.ilike(ref)).first()
-        if existing_ref:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Transaction reference '{ref}' was already posted on Receipt #{existing_ref.receipt_no}."
-            )
+    payment_reference = validate_payment_reference(req.payment_method, req.reference_code, db)
 
     inv.amount_paid += payment_amt
     inv.balance = max(Decimal("0.00"), inv.total - inv.amount_paid)
@@ -452,7 +470,7 @@ def post_payment(
         payment_date=date.today(),
         amount=payment_amt,
         payment_method=req.payment_method or "M-Pesa",
-        reference_code=req.reference_code.strip() if req.reference_code else None,
+        reference_code=payment_reference,
         notes=req.notes or f"Settlement for {inv.invoice_no}",
         posted_by=current_user.id
     )

@@ -45,4 +45,19 @@ body {
   .no-print { display: none !important; }
   .print-only { display: block !important; }
   body { background-color: #FFFFFF !important; }
+  body * { visibility: hidden; }
+  .print-document, .print-document * { visibility: visible; }
+  .print-document {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+    background: #FFFFFF !important;
+    padding: 0 !important;
+  }
+  .print-document > div {
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
 }

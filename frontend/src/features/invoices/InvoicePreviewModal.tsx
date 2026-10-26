@@ -12,16 +12,19 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({ invoic
   if (!invoice) return null;
 
   const handlePrint = () => {
+    const previousTitle = document.title;
+    document.title = `Bovet Invoice ${invoice?.invoice_no || 'Document'} ${Date.now()}`;
     window.print();
+    document.title = previousTitle;
   };
 
   const isPaid = invoice.status === 'PAID' || Number(invoice.balance) === 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div className="print-document fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden my-8">
         {/* Modal Controls (Hidden in Print) */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between no-print">
+        <div className="sticky top-0 z-10 p-4 bg-slate-900 text-white flex items-center justify-between no-print">
           <div className="text-xs font-bold text-slate-300">
             Invoice Preview & Official Receipt
           </div>
@@ -35,9 +38,10 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({ invoic
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
             >
               <X className="w-5 h-5" />
+              <span>Back</span>
             </button>
           </div>
         </div>

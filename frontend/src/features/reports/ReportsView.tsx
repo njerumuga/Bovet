@@ -17,10 +17,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   products,
 }) => {
   const [activeTab, setActiveTab] = useState<'financial' | 'debtors' | 'stock'>('financial');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | '7days' | '30days'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'day' | 'week' | 'month' | 'year' | 'custom'>('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   const handlePrint = () => {
+    const previousTitle = document.title;
+    document.title = `Bovet Business Report ${new Date().toISOString().slice(0, 10)} ${Date.now()}`;
     window.print();
+    document.title = previousTitle;
   };
 
   // Filter invoices based on date filter
@@ -28,20 +33,31 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const filteredInvoices = invoices.filter((inv) => {
     if (inv.status === 'VOID') return false;
     if (dateFilter === 'all') return true;
-    if (dateFilter === 'today') return inv.invoice_date === todayStr;
-
-    const invDate = new Date(inv.invoice_date).getTime();
-    const now = new Date().getTime();
-    const diffDays = (now - invDate) / (1000 * 3600 * 24);
-
-    if (dateFilter === '7days') return diffDays <= 7;
-    if (dateFilter === '30days') return diffDays <= 30;
-    return true;
+    if (dateFilter === 'day') return inv.invoice_date === todayStr;
+    if (dateFilter === 'custom') return (!customStart || inv.invoice_date >= customStart) && (!customEnd || inv.invoice_date <= customEnd);
+    const days = dateFilter === 'week' ? 7 : dateFilter === 'month' ? 30 : 365;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (days - 1));
+    return new Date(`${inv.invoice_date}T23:59:59`).getTime() >= start.getTime();
   });
 
   const grossSales = filteredInvoices.reduce((acc, i) => acc + Number(i.total || 0), 0);
   const cashCollected = filteredInvoices.reduce((acc, i) => acc + Number(i.amount_paid || 0), 0);
   const uncollectedDebts = filteredInvoices.reduce((acc, i) => acc + Number(i.balance || 0), 0);
+  const filteredTopProducts = Object.values(filteredInvoices
+    .flatMap((invoice) => invoice.lines || [])
+    .reduce<Record<string, { name: string; qty_sold: number; sales_amount: number; price_formatted: string }>>((acc, line) => {
+      const key = line.product_name || `Product SKU #${line.product_id}`;
+      const current = acc[key] || { name: key, qty_sold: 0, sales_amount: 0, price_formatted: formatKsh(line.unit_price) };
+      current.qty_sold += Number(line.qty_entered || 0);
+      current.sales_amount += Number(line.line_amount || 0);
+      current.price_formatted = formatKsh(line.unit_price);
+      acc[key] = current;
+      return acc;
+    }, {}))
+    .sort((a, b) => b.sales_amount - a.sales_amount)
+    .slice(0, 10);
 
   // Debtors list sorted by amount owed (BR-REP-05)
   const debtorsList = [...customers]
@@ -95,7 +111,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="print-document space-y-6">
       {/* Top Banner Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 no-print">
         <div>
@@ -109,10 +125,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             className="px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="all">All Historical Records</option>
-            <option value="today">Today's Transactions</option>
-            <option value="7days">Last 7 Days</option>
-            <option value="30days">Last 30 Days</option>
+            <option value="day">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+            <option value="custom">Custom Range</option>
           </select>
+          {dateFilter === 'custom' && <div className="flex gap-2"><input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="rounded-xl border border-slate-200 px-2 py-2 text-xs" /><input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="rounded-xl border border-slate-200 px-2 py-2 text-xs" /></div>}
           <button
             onClick={handlePrint}
             className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition cursor-pointer"
@@ -190,7 +209,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
             <h3 className="text-base font-extrabold text-slate-900 mb-4">Top Fast-Moving Agricultural Feeds & Minerals</h3>
             <div className="divide-y divide-slate-100">
-              {(summary.top_selling_products || []).map((prod, idx) => (
+              {(filteredTopProducts.length ? filteredTopProducts : (summary.top_selling_products || [])).map((prod, idx) => (
                 <div key={idx} className="py-3 flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-3">
                     <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-xs">
