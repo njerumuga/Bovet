@@ -1,5 +1,6 @@
-import React from 'react';
-import { Search, Bell, Plus, RefreshCw, ShoppingCart } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Bell, RefreshCw, ShoppingCart } from 'lucide-react';
+import { AppNotification } from '../types';
 
 interface HeaderProps {
   title: string;
@@ -7,7 +8,8 @@ interface HeaderProps {
   searchTerm: string;
   onSearchChange: (value: string) => void;
   onOpenNewSale?: () => void;
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void>;
+  notifications?: AppNotification[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,7 +19,21 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   onOpenNewSale,
   onRefresh,
+  notifications = [],
 }) => {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 no-print">
       <div>
@@ -43,21 +59,46 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Action Buttons */}
         {onRefresh && (
           <button
-            onClick={onRefresh}
+            onClick={handleRefresh}
             title="Refresh Data"
             className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         )}
 
+        <div className="relative">
         <button
           title="Notifications"
+          onClick={() => setShowNotifications((open) => !open)}
           className="relative p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500"></span>
+          {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500"></span>}
         </button>
+        {showNotifications && (
+          <div className="absolute right-0 top-12 z-50 w-80 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-black text-slate-900">Notifications</span>
+              <span className="text-[10px] font-bold text-slate-400">{notifications.length} active</span>
+            </div>
+            {notifications.length === 0 ? (
+              <p className="p-3 text-xs text-slate-500">No new notifications.</p>
+            ) : (
+              <div className="max-h-72 space-y-2 overflow-y-auto">
+                {notifications.map((notification) => (
+                  <div key={notification.id} className="rounded-lg bg-slate-50 p-2.5">
+                    <p className={`text-xs font-bold ${notification.tone === 'warning' ? 'text-amber-700' : notification.tone === 'success' ? 'text-emerald-700' : 'text-slate-800'}`}>
+                      {notification.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{notification.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        </div>
 
         {onOpenNewSale && (
           <button

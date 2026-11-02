@@ -22,6 +22,26 @@ export interface Customer {
   updated_at?: string;
 }
 
+export interface CustomerPayment {
+  id: number;
+  receipt_no: string;
+  invoice_id: number;
+  invoice_no?: string;
+  payment_date: string;
+  amount: number;
+  payment_method: string;
+  reference_code?: string;
+  notes?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  tone: 'info' | 'warning' | 'success';
+  createdAt?: string;
+}
+
 export interface Product {
   id: number;
   name: string;

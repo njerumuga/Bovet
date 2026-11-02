@@ -8,6 +8,7 @@ from difflib import SequenceMatcher
 from app.db.session import get_db
 from app.db.models.customer import Customer
 from app.db.models.invoice import Invoice
+from app.db.models.payment import Payment
 from app.db.models.audit import AuditLog
 from app.db.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse
@@ -129,6 +130,7 @@ def get_customer(
     
     c_resp = enrich_customer(customer, db)
     invoices = db.query(Invoice).filter(Invoice.customer_id == id).order_by(Invoice.invoice_date.desc()).all()
+    payments = db.query(Payment).filter(Payment.customer_id == id).order_by(Payment.payment_date.desc(), Payment.id.desc()).all()
     
     return {
         "customer": c_resp,
@@ -143,7 +145,21 @@ def get_customer(
                 "status": inv.status.upper() if inv.status != 'arrears' else 'ARREARS'
             }
             for inv in invoices
-        ]
+        ],
+        "payments": [
+            {
+                "id": payment.id,
+                "receipt_no": payment.receipt_no,
+                "invoice_id": payment.invoice_id,
+                "invoice_no": payment.invoice.invoice_no if payment.invoice else None,
+                "payment_date": payment.payment_date,
+                "amount": float(payment.amount),
+                "payment_method": payment.payment_method,
+                "reference_code": payment.reference_code,
+                "notes": payment.notes,
+            }
+            for payment in payments
+        ],
     }
 
 @router.put("/{id}", response_model=CustomerResponse)

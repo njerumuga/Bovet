@@ -1,5 +1,5 @@
-import React from 'react';
-import { DollarSign, Clock, AlertTriangle, Users, ArrowUpRight, TrendingUp } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { DollarSign, Clock, AlertTriangle, Users, ArrowUpRight } from 'lucide-react';
 import { StatCard } from '../../components/StatCard';
 import { Customer, Invoice, Product, DashboardStats } from '../../types';
 import { formatKsh } from '../../lib/utils';
@@ -23,6 +23,7 @@ interface DashboardViewProps {
   customers: Customer[];
   onPreviewInvoice: (invoice: Invoice) => void;
   onNavigate: (tab: string) => void;
+  globalSearch?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -32,19 +33,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   customers,
   onPreviewInvoice,
   onNavigate,
+  globalSearch = '',
 }) => {
+  const [revenueRange, setRevenueRange] = useState<'day' | 'week' | 'month' | 'year'>('week');
+  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]);
+  const rangeStart = useMemo(() => {
+    const start = new Date();
+    if (revenueRange === 'day') {
+      const [year, month, day] = selectedDay.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    if (revenueRange === 'week') start.setDate(start.getDate() - 6);
+    if (revenueRange === 'month') start.setDate(start.getDate() - 29);
+    if (revenueRange === 'year') start.setFullYear(start.getFullYear() - 1);
+    return start;
+  }, [revenueRange, selectedDay]);
+  const rangeInvoices = invoices.filter((invoice) => {
+    if (invoice.status === 'VOID') return false;
+    if (revenueRange === 'day') return invoice.invoice_date === selectedDay;
+    return new Date(`${invoice.invoice_date}T23:59:59`).getTime() >= rangeStart.getTime();
+  });
+  const normalizedSearch = globalSearch.trim().toLowerCase();
+  const visibleInvoices = normalizedSearch
+    ? invoices.filter((invoice) =>
+        invoice.invoice_no.toLowerCase().includes(normalizedSearch) ||
+        (invoice.customer_name || '').toLowerCase().includes(normalizedSearch)
+      )
+    : invoices;
+  const filteredRevenue = rangeInvoices.reduce((total, invoice) => total + Number(invoice.total || 0), 0);
+  const chartDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return date;
+  });
   const chartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: chartDays.map((date) => date.toLocaleDateString(undefined, { weekday: 'short' })),
     datasets: [
       {
         label: 'Cash Collected (KSh)',
-        data: [12000, 19000, 15000, 22000, 18000, 28000, 14000],
+        data: chartDays.map((date) => invoices.filter((invoice) => invoice.status !== 'VOID' && invoice.invoice_date === date.toISOString().split('T')[0]).reduce((sum, invoice) => sum + Number(invoice.amount_paid || 0), 0)),
         backgroundColor: '#10B981',
         borderRadius: 6,
       },
       {
         label: 'Arrears / Credit (KSh)',
-        data: [1800, 3500, 1200, 4500, 2400, 1500, 0],
+        data: chartDays.map((date) => invoices.filter((invoice) => invoice.status !== 'VOID' && invoice.invoice_date === date.toISOString().split('T')[0]).reduce((sum, invoice) => sum + Number(invoice.balance || 0), 0)),
         backgroundColor: '#F59E0B',
         borderRadius: 6,
       },
@@ -78,8 +111,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Sales Revenue"
-          value={formatKsh(stats.total_sales_revenue)}
-          badgeText={stats.total_sales_growth}
+          value={formatKsh(filteredRevenue)}
+          badgeText={`${rangeInvoices.length} invoices`}
           badgeType="success"
           icon={DollarSign}
           iconBgColor="bg-emerald-50 text-emerald-600"
@@ -118,9 +151,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <h3 className="text-base font-extrabold text-slate-900">Weekly Cash vs Credit Trends</h3>
               <p className="text-xs text-slate-500 font-medium">Daily comparison of immediate cash versus customer credit</p>
             </div>
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              This Week
-            </span>
+            <div className="flex items-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 p-1">
+              {(['day', 'week', 'month', 'year'] as const).map((range) => (
+                <button key={range} onClick={() => setRevenueRange(range)} className={`rounded-lg px-2 py-1 text-[10px] font-bold capitalize ${revenueRange === range ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>
+                  {range}
+                </button>
+              ))}
+            </div>
+            {revenueRange === 'day' && (
+              <input type="date" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-700" />
+            )}
           </div>
           <div className="h-64">
             <Bar data={chartData} options={chartOptions} />
@@ -193,7 +233,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {invoices.slice(0, 5).map((inv) => {
+              {visibleInvoices.slice(0, 5).map((inv) => {
                 const isPaid = inv.status === 'PAID' || Number(inv.balance) === 0;
                 return (
                   <tr key={inv.id} className="hover:bg-slate-50/80 transition">

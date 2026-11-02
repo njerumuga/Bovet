@@ -17,8 +17,9 @@ import { CustomerHistoryModal } from './features/customers/CustomerHistoryModal'
 import { AddProductModal } from './features/products/AddProductModal';
 import { RestockModal } from './features/products/RestockModal';
 import { ReceiptModal } from './features/invoices/ReceiptModal';
-import { Customer, Invoice, Product, DashboardStats, ReportSummary, User, Receipt } from './types';
+import { AppNotification, Customer, CustomerPayment, Invoice, Product, DashboardStats, ReportSummary, User, Receipt } from './types';
 import { apiFetch } from './api/client';
+import { formatKsh } from './lib/utils';
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 60 * 1000;
 
@@ -31,24 +32,22 @@ export const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [historyPayments, setHistoryPayments] = useState<CustomerPayment[]>([]);
+  const [recentReceipts, setRecentReceipts] = useState<Receipt[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
-    total_sales_revenue: 148500,
-    total_sales_growth: '+12.4% vs last month',
-    total_pending_arrears: 42500,
-    low_stock_alerts_count: 2,
-    active_customers_count: 4,
+    total_sales_revenue: 0,
+    total_sales_growth: 'No data yet',
+    total_pending_arrears: 0,
+    low_stock_alerts_count: 0,
+    active_customers_count: 0,
     currency: 'KSh',
   });
   const [reportSummary, setReportSummary] = useState<ReportSummary>({
-    gross_sales_value: 148500,
-    cash_received: 106000,
-    uncollected_debts: 42500,
-    total_customer_accounts: 4,
-    top_selling_products: [
-      { name: 'CAN 26% Nitrogen Fertilizer (50kg)', price_formatted: 'KSh 4,500.00', sales_amount: 54000, qty_sold: 12 },
-      { name: 'DAP Planting Fertilizer (50kg)', price_formatted: 'KSh 6,200.00', sales_amount: 49600, qty_sold: 8 },
-      { name: 'Thunder Insecticide (1 Litre)', price_formatted: 'KSh 3,200.00', sales_amount: 19200, qty_sold: 6 },
-    ],
+    gross_sales_value: 0,
+    cash_received: 0,
+    uncollected_debts: 0,
+    total_customer_accounts: 0,
+    top_selling_products: [],
   });
 
   // Modals state
@@ -63,28 +62,13 @@ export const App: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [prods, custs, invs, dStats, rep] = await Promise.all([
-        apiFetch<Product[]>('/products').catch(() => [
-          { id: 1, name: 'CAN 26% Nitrogen Fertilizer', category: 'Fertilizers', base_unit: 'kg', pack_size: 50, price_per_unit: 90, price_per_pack: 4500, qty_on_hand: 85, low_stock_level: 10, status: 'active' },
-          { id: 2, name: 'DAP Planting Fertilizer', category: 'Fertilizers', base_unit: 'kg', pack_size: 50, price_per_unit: 124, price_per_pack: 6200, qty_on_hand: 40, low_stock_level: 15, status: 'active' },
-          { id: 3, name: 'Thunder Insecticide (1L)', category: 'Insecticides', base_unit: 'L', pack_size: 1, price_per_unit: 3200, price_per_pack: 3200, qty_on_hand: 4, low_stock_level: 8, status: 'active' },
-          { id: 4, name: 'Belt Expert 480 SC (500ml)', category: 'Insecticides', base_unit: 'bottle', pack_size: 0.5, price_per_unit: 2850, price_per_pack: 2850, qty_on_hand: 12, low_stock_level: 5, status: 'active' },
-          { id: 5, name: 'Panar 691 Hybrid Seed Maize (2kg)', category: 'Seeds', base_unit: 'packet', pack_size: 2, price_per_unit: 620, price_per_pack: 620, qty_on_hand: 3, low_stock_level: 10, status: 'active' },
-        ]),
-        apiFetch<Customer[]>('/customers').catch(() => [
-          { id: 1, name: 'Samuel Mutuma', phone: '+254 712 345 678', location: 'Maua, Meru', total_purchases: 68500, current_arrears_balance: 14500, credit_status: 'IN ARREARS', status: 'active' },
-          { id: 2, name: 'Christine Kaari', phone: '+254 722 987 654', location: 'Timau Farm', total_purchases: 45000, current_arrears_balance: 0, credit_status: 'CLEAR', status: 'active' },
-          { id: 3, name: 'David Muchena', phone: '+254 733 112 233', location: 'Nkubu', total_purchases: 92000, current_arrears_balance: 28000, credit_status: 'IN ARREARS', status: 'active' },
-          { id: 4, name: 'Francis Kobia', phone: '+254 701 554 433', location: 'Kianjai', total_purchases: 32000, current_arrears_balance: 0, credit_status: 'CLEAR', status: 'active' },
-        ]),
-        apiFetch<Invoice[]>('/invoices').catch(() => [
-          { id: 1, invoice_no: 'INV-2026-001', customer_id: 1, customer_name: 'Samuel Mutuma', customer_phone: '+254 712 345 678', customer_location: 'Maua, Meru', invoice_date: '2026-10-04', subtotal: 45000, discount: 0, total: 45000, amount_paid: 30500, balance: 14500, status: 'ARREARS', lines: [{ product_id: 1, product_name: 'CAN 26% Nitrogen Fertilizer (50kg)', sell_unit: 'bag', qty_entered: 10, unit_price: 4500, line_amount: 45000 }] },
-          { id: 2, invoice_no: 'INV-2026-002', customer_id: 2, customer_name: 'Christine Kaari', customer_phone: '+254 722 987 654', customer_location: 'Timau Farm', invoice_date: '2026-10-04', subtotal: 31000, discount: 0, total: 31000, amount_paid: 31000, balance: 0, status: 'PAID', lines: [{ product_id: 2, product_name: 'DAP Planting Fertilizer (50kg)', sell_unit: 'bag', qty_entered: 5, unit_price: 6200, line_amount: 31000 }] },
-          { id: 3, invoice_no: 'INV-2026-003', customer_id: 3, customer_name: 'David Muchena', customer_phone: '+254 733 112 233', customer_location: 'Nkubu', invoice_date: '2026-10-05', subtotal: 56000, discount: 0, total: 56000, amount_paid: 28000, balance: 28000, status: 'ARREARS', lines: [{ product_id: 1, product_name: 'CAN 26% Nitrogen Fertilizer (50kg)', sell_unit: 'bag', qty_entered: 8, unit_price: 4500, line_amount: 36000 }] },
-          { id: 4, invoice_no: 'INV-2026-004', customer_id: 4, customer_name: 'Francis Kobia', customer_phone: '+254 701 554 433', customer_location: 'Kianjai', invoice_date: '2026-10-05', subtotal: 16500, discount: 0, total: 16500, amount_paid: 16500, balance: 0, status: 'PAID', lines: [{ product_id: 3, product_name: 'Thunder Insecticide (1L)', sell_unit: 'can', qty_entered: 5, unit_price: 3300, line_amount: 16500 }] },
-        ]),
-        apiFetch<DashboardStats>('/dashboard/stats').catch(() => null),
-        apiFetch<ReportSummary>('/reports/summary').catch(() => null),
+      const [prods, custs, invs, dStats, rep, receipts] = await Promise.all([
+        apiFetch<Product[]>('/products'),
+        apiFetch<Customer[]>('/customers'),
+        apiFetch<Invoice[]>('/invoices'),
+        apiFetch<DashboardStats>('/dashboard/stats'),
+        apiFetch<ReportSummary>('/reports/summary'),
+        apiFetch<Receipt[]>('/invoices/receipts/all'),
       ]);
 
       if (prods) setProducts(prods);
@@ -92,10 +76,33 @@ export const App: React.FC = () => {
       if (invs) setInvoices(invs);
       if (dStats) setStats(dStats);
       if (rep) setReportSummary(rep);
+      setRecentReceipts(receipts);
     } catch (e) {
       console.warn('Error loading data:', e);
     }
   };
+
+  const notifications: AppNotification[] = [
+    ...recentReceipts.slice(0, 5).map((receipt) => ({
+      id: `payment-${receipt.id}`,
+      title: 'Payment recorded',
+      message: `${receipt.receipt_no} received ${formatKsh((receipt as Receipt & { amount?: number }).amount ?? receipt.amount_received)} for ${receipt.invoice_no || 'an invoice'}.`,
+      tone: 'success' as const,
+      createdAt: receipt.payment_date,
+    })),
+    ...customers.filter((customer) => Number(customer.current_arrears_balance) > 0).slice(0, 5).map((customer) => ({
+      id: `arrears-${customer.id}`,
+      title: 'Outstanding arrears',
+      message: `${customer.name} has ${formatKsh(customer.current_arrears_balance)} outstanding.`,
+      tone: 'warning' as const,
+    })),
+    ...products.filter((product) => product.stock_status === 'low' || Number(product.qty_on_hand) <= Number(product.low_stock_level)).slice(0, 5).map((product) => ({
+      id: `stock-${product.id}`,
+      title: 'Low stock alert',
+      message: `${product.name} has ${product.qty_on_hand} ${product.base_unit} remaining.`,
+      tone: 'warning' as const,
+    })),
+  ];
 
   useEffect(() => {
     const handleAuthExpired = () => setCurrentUser(null);
@@ -235,6 +242,7 @@ export const App: React.FC = () => {
           onSearchChange={setSearchTerm}
           onOpenNewSale={() => setIsNewSaleOpen(true)}
           onRefresh={loadData}
+          notifications={notifications}
         />
 
         <main className="flex-1 overflow-y-auto p-8">
@@ -256,6 +264,7 @@ export const App: React.FC = () => {
               customers={customers}
               onPreviewInvoice={(inv) => setPreviewInvoice(inv)}
               onNavigate={setCurrentTab}
+              globalSearch={searchTerm}
             />
           )}
 
@@ -267,6 +276,7 @@ export const App: React.FC = () => {
               onOpenPayment={(inv) => setPaymentInvoice(inv)}
               onViewReceipt={setReceipt}
               onInvoiceUpdated={loadData}
+              globalSearch={searchTerm}
             />
           )}
 
@@ -274,8 +284,35 @@ export const App: React.FC = () => {
             <CustomersView
               customers={customers}
               onOpenAddCustomer={() => setIsAddCustomerOpen(true)}
-              onViewHistory={(c) => setHistoryCustomer(c)}
+              onViewHistory={async (c) => {
+                setHistoryCustomer(c);
+                try {
+                  const receipts = await apiFetch<Receipt[]>('/invoices/receipts/all');
+                  setHistoryPayments(
+                    receipts
+                      .filter((receipt) => receipt.customer_id === c.id)
+                      .map((receipt) => ({
+                        id: receipt.id || 0,
+                        receipt_no: receipt.receipt_no,
+                        invoice_id: receipt.invoice_id || 0,
+                        invoice_no: receipt.invoice_no,
+                        payment_date: receipt.payment_date,
+                        amount: Number(
+                          (receipt as Receipt & { amount?: number }).amount
+                            ?? receipt.amount_received
+                            ?? 0
+                        ),
+                        payment_method: receipt.payment_method,
+                        reference_code: receipt.reference_code,
+                        notes: receipt.notes,
+                      }))
+                  );
+                } catch {
+                  setHistoryPayments([]);
+                }
+              }}
               onCustomerUpdated={loadData}
+              globalSearch={searchTerm}
             />
           )}
 
@@ -285,6 +322,7 @@ export const App: React.FC = () => {
               onOpenAddProduct={() => setIsAddProductOpen(true)}
               onOpenRestock={(p) => setRestockProduct(p)}
               onProductUpdated={loadData}
+              globalSearch={searchTerm}
             />
           )}
 
@@ -336,6 +374,7 @@ export const App: React.FC = () => {
       <CustomerHistoryModal
         customer={historyCustomer}
         invoices={invoices}
+        payments={historyPayments}
         onClose={() => setHistoryCustomer(null)}
       />
 

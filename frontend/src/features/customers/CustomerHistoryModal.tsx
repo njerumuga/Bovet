@@ -1,22 +1,25 @@
 import React from 'react';
 import { X, User, Printer } from 'lucide-react';
-import { Customer, Invoice } from '../../types';
+import { Customer, CustomerPayment, Invoice } from '../../types';
 import { formatKsh } from '../../lib/utils';
 
 interface CustomerHistoryModalProps {
   customer: Customer | null;
   invoices: Invoice[];
+  payments: CustomerPayment[];
   onClose: () => void;
 }
 
 export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
   customer,
   invoices,
+  payments,
   onClose,
 }) => {
   if (!customer) return null;
 
   const customerInvoices = invoices.filter((i) => i.customer_id === customer.id);
+
   const handlePrint = () => {
     const previousTitle = document.title;
     document.title = `Bovet Customer Statement ${customer.name} ${Date.now()}`;
@@ -60,33 +63,34 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
 
           <div>
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Transaction Ledger & Invoices
+              Transaction Ledger & Payments
             </h4>
             <div className="border border-slate-200 rounded-xl overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 font-bold text-slate-600 border-b border-slate-200">
                   <tr>
-                    <th className="p-3">Invoice #</th>
+                    <th className="p-3">Type</th>
                     <th className="p-3">Date</th>
                     <th className="p-3 text-right">Total</th>
                     <th className="p-3 text-right">Paid</th>
                     <th className="p-3 text-right">Balance</th>
-                    <th className="p-3 text-center">Status</th>
+                    <th className="p-3 text-center">Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {customerInvoices.length === 0 ? (
+                  {customerInvoices.length === 0 && payments.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="p-6 text-center text-slate-400">
                         No transactions found for this customer.
                       </td>
                     </tr>
                   ) : (
-                    customerInvoices.map((inv) => {
+                    <>
+                    {customerInvoices.map((inv) => {
                       const isPaid = inv.status === 'PAID' || Number(inv.balance) === 0;
                       return (
                         <tr key={inv.id}>
-                          <td className="p-3 font-bold text-slate-900">{inv.invoice_no}</td>
+                          <td className="p-3 font-bold text-slate-900">Invoice {inv.invoice_no}</td>
                           <td className="p-3 text-slate-500">{inv.invoice_date}</td>
                           <td className="p-3 text-right font-black text-slate-900">{formatKsh(inv.total)}</td>
                           <td className="p-3 text-right text-emerald-600 font-bold">{formatKsh(inv.amount_paid)}</td>
@@ -100,7 +104,21 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                           </td>
                         </tr>
                       );
-                    })
+                    })}
+                    {payments.map((payment) => (
+                      <tr key={`payment-${payment.id}`} className="bg-emerald-50/40">
+                        <td className="p-3 font-bold text-emerald-700">Payment {payment.receipt_no}</td>
+                        <td className="p-3 text-slate-500">{payment.payment_date}</td>
+                        <td className="p-3 text-right text-slate-400">-</td>
+                        <td className="p-3 text-right text-emerald-600 font-black">{formatKsh(payment.amount)}</td>
+                        <td className="p-3 text-right text-slate-400">-</td>
+                        <td className="p-3 text-center text-[10px] font-bold text-slate-600">
+                          {payment.payment_method}
+                          {payment.reference_code ? ` • ${payment.reference_code}` : ''}
+                        </td>
+                      </tr>
+                    ))}
+                    </>
                   )}
                 </tbody>
               </table>

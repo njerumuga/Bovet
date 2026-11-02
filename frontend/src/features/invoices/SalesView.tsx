@@ -11,6 +11,7 @@ interface SalesViewProps {
   onOpenPayment: (invoice: Invoice) => void;
   onViewReceipt?: (receipt: Receipt) => void;
   onInvoiceUpdated?: () => void;
+  globalSearch?: string;
 }
 
 export const SalesView: React.FC<SalesViewProps> = ({
@@ -20,13 +21,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
   onOpenPayment,
   onViewReceipt,
   onInvoiceUpdated,
+  globalSearch = '',
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'arrears' | 'void'>('all');
   const [voidingId, setVoidingId] = useState<number | null>(null);
 
   const filteredInvoices = invoices.filter((inv) => {
-    const q = search.toLowerCase();
+    const q = (search || globalSearch).toLowerCase();
     const matchesSearch =
       inv.invoice_no.toLowerCase().includes(q) ||
       (inv.customer_name && inv.customer_name.toLowerCase().includes(q));
@@ -240,7 +242,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
                         {Number(inv.amount_paid) > 0 && (
                           <button
                             onClick={() => {
-                              const rcpt: Receipt = inv.latest_receipt || {
+                              const rcpt: Receipt = inv.latest_receipt
+                                ? {
+                                    ...inv.latest_receipt,
+                                    amount_received: Number(
+                                      (inv.latest_receipt as Receipt & { amount?: number }).amount
+                                        ?? inv.latest_receipt.amount_received
+                                    ),
+                                  }
+                                : {
                                 receipt_no: `RCT-${inv.id + 600}`,
                                 invoice_no: inv.invoice_no,
                                 customer_name: inv.customer_name || 'Customer',
@@ -252,7 +262,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 reference_code: 'QJD928DKL',
                                 invoice_total: Number(inv.total),
                                 remaining_balance: Number(inv.balance),
-                              };
+                                };
                               onViewReceipt?.(rcpt);
                             }}
                             className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-xs font-bold transition inline-flex items-center space-x-1 cursor-pointer"

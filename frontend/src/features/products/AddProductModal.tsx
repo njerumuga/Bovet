@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, AlertCircle, Box } from 'lucide-react';
 import { apiFetch } from '../../api/client';
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from './productOptions';
+import { SearchableSelect } from '../../components/SearchableSelect';
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -103,30 +104,14 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Category
               </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {PRODUCT_CATEGORIES.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+              <SearchableSelect value={category} onChange={setCategory} options={PRODUCT_CATEGORIES.map((option) => ({ value: option, label: option }))} />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Base Measurement Unit
               </label>
-              <select
-                value={baseUnit}
-                onChange={(e) => setBaseUnit(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {PRODUCT_UNITS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+              <SearchableSelect value={baseUnit} onChange={setBaseUnit} options={PRODUCT_UNITS.map((option) => ({ value: option, label: option }))} />
             </div>
           </div>
 

@@ -10,6 +10,7 @@ interface CustomersViewProps {
   onOpenAddCustomer: () => void;
   onViewHistory: (customer: Customer) => void;
   onCustomerUpdated?: () => void;
+  globalSearch?: string;
 }
 
 export const CustomersView: React.FC<CustomersViewProps> = ({
@@ -17,13 +18,14 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   onOpenAddCustomer,
   onViewHistory,
   onCustomerUpdated,
+  globalSearch = '',
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'arrears'>('all');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   const filteredCustomers = customers.filter((c) => {
-    const q = search.toLowerCase();
+    const q = (search || globalSearch).toLowerCase();
     const matchesSearch =
       c.name.toLowerCase().includes(q) ||
       c.phone.includes(q) ||

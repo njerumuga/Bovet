@@ -5,12 +5,14 @@ import { formatKsh } from '../../lib/utils';
 import { EditProductModal } from './EditProductModal';
 import { apiFetch } from '../../api/client';
 import { PRODUCT_CATEGORIES } from './productOptions';
+import { SearchableSelect } from '../../components/SearchableSelect';
 
 interface InventoryViewProps {
   products: Product[];
   onOpenAddProduct: () => void;
   onOpenRestock: (product: Product) => void;
   onProductUpdated?: () => void;
+  globalSearch?: string;
 }
 
 export const InventoryView: React.FC<InventoryViewProps> = ({
@@ -18,6 +20,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   onOpenAddProduct,
   onOpenRestock,
   onProductUpdated,
+  globalSearch = '',
 }) => {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -31,7 +34,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   ];
 
   const filteredProducts = products.filter((p) => {
-    const q = search.toLowerCase();
+    const q = (search || globalSearch).toLowerCase();
     const matchesSearch =
       p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
@@ -142,17 +145,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </div>
 
             <div className="flex gap-2">
-              <select
+              <SearchableSelect
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 capitalize focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c === 'all' ? 'All Categories' : c}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryFilter}
+                options={categories.map((c) => ({ value: c, label: c === 'all' ? 'All Categories' : c }))}
+                className="min-w-40"
+              />
               <select
                 value={statusFilter}
                 onChange={(e) => {

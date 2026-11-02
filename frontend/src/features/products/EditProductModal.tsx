@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { Product } from '../../types';
 import { apiFetch } from '../../api/client';
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from './productOptions';
+import { SearchableSelect } from '../../components/SearchableSelect';
 
 interface EditProductModalProps {
   product: Product;
@@ -72,25 +73,11 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             </label>
             <label className="text-xs font-bold text-slate-600">
               Category
-              <select value={form.category} onChange={(e) => handleChange('category', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                {!PRODUCT_CATEGORIES.includes(form.category as typeof PRODUCT_CATEGORIES[number]) && (
-                  <option value={form.category}>{form.category}</option>
-                )}
-                {PRODUCT_CATEGORIES.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+              <SearchableSelect value={form.category} onChange={(value) => handleChange('category', value)} options={[...(PRODUCT_CATEGORIES.includes(form.category as typeof PRODUCT_CATEGORIES[number]) ? [] : [{ value: form.category, label: form.category }]), ...PRODUCT_CATEGORIES.map((option) => ({ value: option, label: option }))]} className="mt-1" />
             </label>
             <label className="text-xs font-bold text-slate-600">
               Base unit
-              <select value={form.base_unit} onChange={(e) => handleChange('base_unit', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                {!PRODUCT_UNITS.includes(form.base_unit as typeof PRODUCT_UNITS[number]) && (
-                  <option value={form.base_unit}>{form.base_unit}</option>
-                )}
-                {PRODUCT_UNITS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
+              <SearchableSelect value={form.base_unit} onChange={(value) => handleChange('base_unit', value)} options={[...(PRODUCT_UNITS.includes(form.base_unit as typeof PRODUCT_UNITS[number]) ? [] : [{ value: form.base_unit, label: form.base_unit }]), ...PRODUCT_UNITS.map((option) => ({ value: option, label: option }))]} className="mt-1" />
             </label>
             <label className="text-xs font-bold text-slate-600">
               Pack size
