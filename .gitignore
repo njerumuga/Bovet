@@ -1,0 +1,9 @@
+/.idea/
+.env
+__pycache__/
+*.py[cod]
+/backend/venv/
+/backend/.venv/
+/backend/bovet.db
+/backend/static/
+/frontend/dist/
