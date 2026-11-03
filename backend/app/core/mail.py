@@ -39,8 +39,14 @@ def send_login_otp(recipient: str, code: str) -> None:
             with urllib.request.urlopen(request, timeout=15) as response:
                 if response.status < 200 or response.status >= 300:
                     raise RuntimeError(f"Brevo returned HTTP {response.status}.")
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
-            raise RuntimeError("Brevo email delivery failed.") from exc
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read().decode("utf-8", errors="replace").strip()
+            detail = response_body[:500] if response_body else exc.reason
+            raise RuntimeError(
+                f"Brevo email delivery failed with HTTP {exc.code}: {detail}"
+            ) from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise RuntimeError(f"Brevo email delivery failed: {exc}") from exc
         return
 
     if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
