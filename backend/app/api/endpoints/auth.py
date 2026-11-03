@@ -100,12 +100,14 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         send_login_otp(user.email, code)
     except (smtplib.SMTPException, OSError, RuntimeError) as exc:
         logger.exception(
-            "OTP email delivery failed for %s using SMTP host=%s port=%s user_configured=%s mail_from_configured=%s",
+            "OTP email delivery failed for %s using provider=%s smtp_host=%s smtp_port=%s user_configured=%s mail_from_configured=%s brevo_configured=%s",
             user.email,
+            "brevo" if settings.BREVO_API_KEY else "smtp",
             settings.SMTP_HOST,
             settings.SMTP_PORT,
             bool(settings.SMTP_USER or settings.BREVO_API_KEY),
             bool(settings.MAIL_FROM),
+            bool(settings.BREVO_API_KEY),
         )
         clear_otp(db, user.email)
         raise HTTPException(
