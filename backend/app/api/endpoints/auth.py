@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import logging
 import smtplib
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,6 +21,7 @@ from app.schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 def _user_payload(user: User) -> dict:
@@ -97,6 +99,14 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     try:
         send_login_otp(user.email, code)
     except (smtplib.SMTPException, OSError, RuntimeError) as exc:
+        logger.exception(
+            "OTP email delivery failed for %s using SMTP host=%s port=%s user_configured=%s mail_from_configured=%s",
+            user.email,
+            settings.SMTP_HOST,
+            settings.SMTP_PORT,
+            bool(settings.SMTP_USER),
+            bool(settings.MAIL_FROM),
+        )
         clear_otp(db, user.email)
         raise HTTPException(
             status_code=503,
