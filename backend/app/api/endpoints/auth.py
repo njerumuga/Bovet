@@ -104,7 +104,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
             user.email,
             settings.SMTP_HOST,
             settings.SMTP_PORT,
-            bool(settings.SMTP_USER),
+            bool(settings.SMTP_USER or settings.BREVO_API_KEY),
             bool(settings.MAIL_FROM),
         )
         clear_otp(db, user.email)

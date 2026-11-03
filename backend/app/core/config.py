@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     MAIL_FROM: Optional[str] = None
+    BREVO_API_KEY: Optional[str] = None
     
     APP_ORIGIN: str = "http://localhost:5173"
     TZ: str = "Africa/Nairobi"
