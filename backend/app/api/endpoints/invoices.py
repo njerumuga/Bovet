@@ -104,7 +104,7 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
     if status_str in ["UNPAID", "PARTIALLY_PAID", "ARREARS"]:
         status_str = "ARREARS" if inv.balance > 0 else "PAID"
     elif status_str == "VOID":
-        status_str = "VOID"
+        status_str = "REVERSED"
 
     latest_receipt = None
     if db:

@@ -32,13 +32,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
     const matchesSearch =
       inv.invoice_no.toLowerCase().includes(q) ||
       (inv.customer_name && inv.customer_name.toLowerCase().includes(q));
-    const isPaid = (inv.status === 'PAID' || Number(inv.balance) === 0) && inv.status !== 'VOID';
-    const isVoid = inv.status === 'VOID';
+    const isReversed = inv.status === 'VOID' || inv.status === 'REVERSED';
+    const isPaid = (inv.status === 'PAID' || Number(inv.balance) === 0) && !isReversed;
 
     let matchesStatus = true;
     if (statusFilter === 'paid') matchesStatus = isPaid;
-    if (statusFilter === 'arrears') matchesStatus = !isPaid && !isVoid;
-    if (statusFilter === 'void') matchesStatus = isVoid;
+    if (statusFilter === 'arrears') matchesStatus = !isPaid && !isReversed;
+    if (statusFilter === 'void') matchesStatus = isReversed;
 
     return matchesSearch && matchesStatus;
   });
@@ -82,7 +82,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     document.body.removeChild(link);
   };
 
-  const activeInvoices = invoices.filter(i => i.status !== 'VOID');
+  const activeInvoices = invoices.filter(i => i.status !== 'VOID' && i.status !== 'REVERSED');
   const totalSales = activeInvoices.reduce((acc, i) => acc + Number(i.total || 0), 0);
   const totalCollected = activeInvoices.reduce((acc, i) => acc + Number(i.amount_paid || 0), 0);
   const totalArrears = activeInvoices.reduce((acc, i) => acc + Number(i.balance || 0), 0);
@@ -207,8 +207,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </tr>
               ) : (
                 filteredInvoices.map((inv) => {
-                  const isPaid = (inv.status === 'PAID' || Number(inv.balance) === 0) && inv.status !== 'VOID';
-                  const isVoid = inv.status === 'VOID';
+                  const isReversed = inv.status === 'VOID' || inv.status === 'REVERSED';
+                  const isPaid = (inv.status === 'PAID' || Number(inv.balance) === 0) && !isReversed;
 
                   return (
                     <tr key={inv.id} className="hover:bg-slate-50/80 transition">
@@ -222,13 +222,13 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs ${
-                          isVoid
+                          isReversed
                             ? 'bg-rose-100 text-rose-800 font-bold'
                             : isPaid
                             ? 'badge-paid'
                             : 'badge-arrears'
                         }`}>
-                          {isVoid ? 'VOID' : isPaid ? 'PAID' : 'ARREARS'}
+                          {isReversed ? 'REVERSED' : isPaid ? 'PAID' : 'ARREARS'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right whitespace-nowrap space-x-1.5">
@@ -272,7 +272,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             <span>Receipt</span>
                           </button>
                         )}
-                        {!isPaid && !isVoid && (
+                        {!isPaid && !isReversed && (
                           <button
                             onClick={() => onOpenPayment(inv)}
                             className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-sm transition inline-flex items-center space-x-1 cursor-pointer"
@@ -281,7 +281,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                             <span>Pay</span>
                           </button>
                         )}
-                        {!isVoid && (
+                        {!isReversed && (
                           <button
                             onClick={() => handleVoidInvoice(inv)}
                             className="px-2 py-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition inline-flex items-center space-x-0.5 cursor-pointer"
