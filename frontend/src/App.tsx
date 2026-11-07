@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { LoginView } from './features/auth/LoginView';
@@ -26,6 +26,7 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 60 * 1000;
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authSlow, setAuthSlow] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -170,6 +171,7 @@ export const App: React.FC = () => {
     }
 
     let cancelled = false;
+    const slowNoticeId = window.setTimeout(() => setAuthSlow(true), 8000);
     apiFetch<User>('/auth/me')
       .then((user) => {
         if (cancelled) return;
@@ -184,11 +186,13 @@ export const App: React.FC = () => {
         setCurrentUser(null);
       })
       .finally(() => {
+        window.clearTimeout(slowNoticeId);
         if (!cancelled) setAuthLoading(false);
       });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(slowNoticeId);
     };
   }, []);
 
@@ -204,7 +208,32 @@ export const App: React.FC = () => {
   };
 
   if (authLoading) {
-    return <div className="fixed inset-0 bg-[#0B1528]" aria-label="Loading application" />;
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-[#0B1528] flex items-center justify-center p-4"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex flex-col items-center text-center">
+          <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" aria-hidden="true" />
+          <p className="mt-4 text-sm font-bold text-white">
+            {authSlow ? 'The service is taking longer than usual...' : 'Refreshing your session...'}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            {authSlow ? 'The backend may be waking up. You can retry the connection.' : 'Please wait while we securely restore your session.'}
+          </p>
+          {authSlow && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600"
+            >
+              Retry connection
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (!currentUser) {
