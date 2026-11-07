@@ -32,7 +32,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
     const matchesSearch =
       inv.invoice_no.toLowerCase().includes(q) ||
       (inv.customer_name && inv.customer_name.toLowerCase().includes(q));
-    const isReversed = inv.status === 'VOID' || inv.status === 'REVERSED';
+    const isReversed = Boolean(inv.void_reason) || inv.status === 'VOID' || inv.status === 'REVERSED';
     const isPaid = (inv.status === 'PAID' || Number(inv.balance) === 0) && !isReversed;
 
     let matchesStatus = true;
@@ -207,7 +207,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                 </tr>
               ) : (
                 filteredInvoices.map((inv) => {
-                  const isReversed = inv.status === 'VOID' || inv.status === 'REVERSED';
+                  const isReversed = Boolean(inv.void_reason) || inv.status === 'VOID' || inv.status === 'REVERSED';
                   const isPaid = (inv.status === 'PAID' || Number(inv.balance) === 0) && !isReversed;
 
                   return (

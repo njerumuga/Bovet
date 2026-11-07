@@ -87,7 +87,7 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                   ) : (
                     <>
                     {customerInvoices.map((inv) => {
-                      const isReversed = inv.status === 'VOID' || inv.status === 'REVERSED';
+                      const isReversed = Boolean(inv.void_reason) || inv.status === 'VOID' || inv.status === 'REVERSED';
                       const isPaid = !isReversed && (inv.status === 'PAID' || Number(inv.balance) === 0);
                       return (
                         <tr key={inv.id}>

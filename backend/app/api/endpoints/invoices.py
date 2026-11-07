@@ -101,10 +101,10 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
     ]
 
     status_str = inv.status.upper()
-    if status_str in ["UNPAID", "PARTIALLY_PAID", "ARREARS"]:
-        status_str = "ARREARS" if inv.balance > 0 else "PAID"
-    elif status_str == "VOID":
+    if inv.void_reason or status_str in ["VOID", "REVERSED"]:
         status_str = "REVERSED"
+    elif status_str in ["UNPAID", "PARTIALLY_PAID", "ARREARS"]:
+        status_str = "ARREARS" if inv.balance > 0 else "PAID"
 
     latest_receipt = None
     if db:
