@@ -11,6 +11,8 @@ services:
         generateValue: true
       - key: OTP_HMAC_KEY
         generateValue: true
+      - key: ACCESS_TOKEN_MINUTES
+        value: "720"
       - key: APP_ORIGIN
         sync: false
       - key: BREVO_API_KEY

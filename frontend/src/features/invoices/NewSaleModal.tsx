@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Plus, Trash2, ShoppingCart, AlertCircle, AlertTriangle, CheckCircle, CreditCard } from 'lucide-react';
 import { Customer, Product, InvoiceLine } from '../../types';
 import { formatKsh } from '../../lib/utils';
@@ -34,11 +34,31 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
   ]);
   const [discount, setDiscount] = useState<number>(0);
   const [amountPaid, setAmountPaid] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<string>('M-Pesa');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [referenceCode, setReferenceCode] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setCustomerId(customers[0]?.id || 1);
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setLines([{
+      product_id: products[0]?.id || 1,
+      sell_unit: products[0]?.base_unit || 'Bags',
+      qty_entered: 1,
+      unit_price: Number(products[0]?.price_per_unit || 0),
+      list_price: Number(products[0]?.price_per_unit || 0),
+      line_amount: Number(products[0]?.price_per_unit || 0),
+    }]);
+    setDiscount(0);
+    setAmountPaid(0);
+    setPaymentMethod('');
+    setReferenceCode('');
+    setNotes('');
+    setError(null);
+  }, [isOpen, customers, products]);
 
   if (!isOpen) return null;
 
@@ -235,8 +255,8 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
 
                 return (
                   <div key={idx} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-                      <div className="flex-1 w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_6rem_7rem_auto_auto] items-start md:items-center gap-2">
+                      <div className="min-w-0 w-full">
                         <SearchableSelect
                           value={line.product_id}
                           onChange={(value) => handleProductChange(idx, Number(value))}
@@ -249,7 +269,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                       </div>
 
                       {hasPack && (
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1 shrink-0">
                           <button
                             type="button"
                             onClick={() => handleUnitToggle(idx, false)}
@@ -275,7 +295,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                         </div>
                       )}
 
-                      <div className="w-24 min-w-[6rem] shrink-0">
+                      <div className="w-full min-w-0">
                         <input
                           type="number"
                           min="0.1"
@@ -287,7 +307,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                         />
                       </div>
 
-                      <div className="w-28 min-w-[7rem] shrink-0">
+                      <div className="w-full min-w-0">
                         <input
                           type="number"
                           value={line.unit_price}
@@ -298,7 +318,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                         />
                       </div>
 
-                      <div className="w-28 text-right font-black text-xs text-slate-900 pr-2">
+                      <div className="w-full text-right font-black text-xs text-slate-900 pr-2">
                         {formatKsh(line.line_amount)}
                       </div>
 
@@ -380,6 +400,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Payment Channel</label>
                   <SearchableSelect
                     value={paymentMethod}
+                    placeholder="Select channel"
                     onChange={setPaymentMethod}
                     options={[
                       { value: 'M-Pesa', label: 'M-Pesa (Paybill 247247)' },

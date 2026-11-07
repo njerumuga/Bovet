@@ -87,7 +87,8 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                   ) : (
                     <>
                     {customerInvoices.map((inv) => {
-                      const isPaid = inv.status === 'PAID' || Number(inv.balance) === 0;
+                      const isReversed = inv.status === 'VOID';
+                      const isPaid = !isReversed && (inv.status === 'PAID' || Number(inv.balance) === 0);
                       return (
                         <tr key={inv.id}>
                           <td className="p-3 font-bold text-slate-900">Invoice {inv.invoice_no}</td>
@@ -98,8 +99,10 @@ export const CustomerHistoryModal: React.FC<CustomerHistoryModalProps> = ({
                             {formatKsh(inv.balance)}
                           </td>
                           <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isPaid ? 'badge-paid' : 'badge-arrears'}`}>
-                              {isPaid ? 'PAID' : 'ARREARS'}
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isReversed ? 'bg-slate-200 text-slate-700' : isPaid ? 'badge-paid' : 'badge-arrears'
+                            }`}>
+                              {isReversed ? 'REVERSED' : isPaid ? 'PAID' : 'ARREARS'}
                             </span>
                           </td>
                         </tr>

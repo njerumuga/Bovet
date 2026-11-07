@@ -25,6 +25,7 @@ const IDLE_TIMEOUT_MS = 5 * 60 * 60 * 1000;
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -163,7 +164,10 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      setAuthLoading(false);
+      return;
+    }
 
     let cancelled = false;
     apiFetch<User>('/auth/me')
@@ -178,6 +182,9 @@ export const App: React.FC = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setCurrentUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAuthLoading(false);
       });
 
     return () => {
@@ -195,6 +202,10 @@ export const App: React.FC = () => {
     localStorage.removeItem('user');
     setCurrentUser(null);
   };
+
+  if (authLoading) {
+    return <div className="fixed inset-0 bg-[#0B1528]" aria-label="Loading application" />;
+  }
 
   if (!currentUser) {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
