@@ -142,6 +142,7 @@ def get_customer(
                 "total": float(inv.total),
                 "amount_paid": float(inv.amount_paid),
                 "balance": float(inv.balance),
+                "is_credit": inv.is_credit,
                 "status": inv.status.upper() if inv.status != 'arrears' else 'ARREARS'
             }
             for inv in invoices
@@ -155,6 +156,7 @@ def get_customer(
                 "payment_date": payment.payment_date,
                 "amount": float(payment.amount),
                 "payment_method": payment.payment_method,
+                "payment_type": payment.payment_type,
                 "reference_code": payment.reference_code,
                 "notes": payment.notes,
             }

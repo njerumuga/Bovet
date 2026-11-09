@@ -47,6 +47,8 @@ export const App: React.FC = () => {
   const [reportSummary, setReportSummary] = useState<ReportSummary>({
     gross_sales_value: 0,
     cash_received: 0,
+    direct_cash_sales: 0,
+    credit_collections: 0,
     uncollected_debts: 0,
     total_customer_accounts: 0,
     top_selling_products: [],

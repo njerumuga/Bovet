@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DollarSign, Printer, FileDown, TrendingUp, CreditCard, Users, ShoppingBag, AlertTriangle, Calendar, Layers } from 'lucide-react';
-import { Customer, Invoice, Product, ReportSummary } from '../../types';
+import { CreditCollections, Customer, Invoice, Product, ReportSummary } from '../../types';
 import { formatKsh } from '../../lib/utils';
+import { apiFetch } from '../../api/client';
 
 interface ReportsViewProps {
   summary: ReportSummary;
@@ -20,6 +21,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [dateFilter, setDateFilter] = useState<'all' | 'day' | 'week' | 'month' | 'year' | 'custom'>('all');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [creditCollections, setCreditCollections] = useState<CreditCollections | null>(null);
+
+  useEffect(() => {
+    apiFetch<CreditCollections>('/reports/credit-collections')
+      .then(setCreditCollections)
+      .catch(() => setCreditCollections(null));
+  }, []);
 
   const handlePrint = () => {
     const previousTitle = document.title;
@@ -202,6 +210,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </div>
               <div className="text-2xl font-black text-slate-900">{customers.length}</div>
               <p className="text-[11px] text-blue-600 font-bold mt-1.5">Registered Farmers</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Credit Collections / Debt Recovery Statement</h3>
+                <p className="text-xs text-slate-500 mt-1">Arrears repayments are isolated from direct sale cash.</p>
+              </div>
+              <span className="text-lg font-black text-amber-700">{formatKsh(creditCollections?.total || 0)}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase font-bold"><tr><th className="px-6 py-3">Date</th><th className="px-6 py-3">Receipt</th><th className="px-6 py-3">Customer</th><th className="px-6 py-3">Method</th><th className="px-6 py-3 text-right">Amount</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(creditCollections?.items || []).map((item) => <tr key={item.receipt_no}><td className="px-6 py-3">{item.payment_date}</td><td className="px-6 py-3 font-bold">{item.receipt_no}</td><td className="px-6 py-3">{item.customer_name}</td><td className="px-6 py-3">{item.payment_method}</td><td className="px-6 py-3 text-right font-black text-amber-700">{formatKsh(item.amount)}</td></tr>)}
+                  {!creditCollections?.items.length && <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No credit recoveries recorded.</td></tr>}
+                </tbody>
+              </table>
             </div>
           </div>
 

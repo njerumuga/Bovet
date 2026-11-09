@@ -52,6 +52,7 @@ class ReceiptResponse(BaseModel):
     payment_date: date
     amount: Decimal
     payment_method: str
+    payment_type: str = "direct_sale"
     reference_code: Optional[str] = None
     invoice_total: Optional[Decimal] = None
     remaining_balance: Decimal
@@ -74,7 +75,9 @@ class InvoiceResponse(BaseModel):
     discount: Decimal
     total: Decimal
     amount_paid: Decimal
+    direct_amount_paid: Decimal = Decimal("0.00")
     balance: Decimal
+    is_credit: bool = False
     status: str # PAID, ARREARS, PARTIALLY_PAID, VOID
     void_reason: Optional[str] = None
     notes: Optional[str] = None

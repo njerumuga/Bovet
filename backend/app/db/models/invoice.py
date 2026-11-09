@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, TEXT, DATE, DateTime, ForeignKey, NUMERIC, CheckConstraint, Index
+from sqlalchemy import Boolean, Column, Integer, BigInteger, TEXT, DATE, DateTime, ForeignKey, NUMERIC, CheckConstraint, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -20,6 +20,7 @@ class Invoice(Base):
     total = Column(NUMERIC(14,2), nullable=False)
     amount_paid = Column(NUMERIC(14,2), nullable=False, default=0)
     balance = Column(NUMERIC(14,2), nullable=False, default=0)
+    is_credit = Column(Boolean, nullable=False, default=False)
     status = Column(TEXT, nullable=False)
     void_reason = Column(TEXT, nullable=True)
     voided_by = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("users.id"), nullable=True)

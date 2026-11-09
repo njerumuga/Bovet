@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, desc
+from sqlalchemy import func, or_, desc
 from typing import List, Optional
 from datetime import date, datetime
 from decimal import Decimal
@@ -77,6 +77,7 @@ def format_receipt(pmt: Payment) -> ReceiptResponse:
         payment_date=pmt.payment_date,
         amount=pmt.amount,
         payment_method=pmt.payment_method,
+        payment_type=pmt.payment_type,
         reference_code=pmt.reference_code,
         invoice_total=inv_total,
         remaining_balance=rem_bal,
@@ -107,7 +108,12 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
         status_str = "ARREARS" if inv.balance > 0 else "PAID"
 
     latest_receipt = None
+    direct_amount_paid = Decimal("0.00")
     if db:
+        direct_amount_paid = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
+            Payment.invoice_id == inv.id,
+            Payment.payment_type == "direct_sale",
+        ).scalar() or Decimal("0.00")
         latest_payment = db.query(Payment).filter(Payment.invoice_id == inv.id).order_by(Payment.id.desc()).first()
         if latest_payment:
             latest_receipt = format_receipt(latest_payment)
@@ -125,7 +131,9 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
         discount=inv.discount,
         total=inv.total,
         amount_paid=inv.amount_paid,
+        direct_amount_paid=Decimal(str(direct_amount_paid)),
         balance=inv.balance,
+        is_credit=inv.is_credit,
         status=status_str,
         void_reason=inv.void_reason,
         notes=inv.notes,
@@ -345,6 +353,7 @@ def create_invoice(
         total=total,
         amount_paid=amount_paid,
         balance=balance,
+        is_credit=balance > 0,
         status=status_val,
         notes=req.notes,
         created_by=current_user.id
@@ -380,6 +389,7 @@ def create_invoice(
             payment_date=invoice.invoice_date,
             amount=amount_paid,
             payment_method=req.payment_method or "M-Pesa",
+            payment_type="direct_sale",
             reference_code=payment_reference,
             notes=f"Immediate settlement for {invoice.invoice_no}",
             posted_by=current_user.id
@@ -470,6 +480,7 @@ def post_payment(
         payment_date=date.today(),
         amount=payment_amt,
         payment_method=req.payment_method or "M-Pesa",
+        payment_type="credit_collection",
         reference_code=payment_reference,
         notes=req.notes or f"Settlement for {inv.invoice_no}",
         posted_by=current_user.id

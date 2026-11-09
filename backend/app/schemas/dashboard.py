@@ -28,7 +28,37 @@ class TopProductItem(BaseModel):
 class ReportsSummaryResponse(BaseModel):
     gross_sales_value: Decimal
     cash_received: Decimal
+    direct_cash_sales: Decimal
+    credit_collections: Decimal
     uncollected_debts: Decimal
     total_customer_accounts: int
     currency: str = "KSh"
     top_selling_products: List[TopProductItem] = []
+
+class PaymentBreakdownItem(BaseModel):
+    payment_date: date
+    cash: Decimal
+    bank_transfer: Decimal
+    mpesa: Decimal
+    total: Decimal
+
+class PaymentBreakdownResponse(BaseModel):
+    period: str
+    start_date: date
+    end_date: date
+    items: List[PaymentBreakdownItem]
+    total: Decimal
+
+class CreditCollectionItem(BaseModel):
+    payment_date: date
+    receipt_no: str
+    customer_name: str
+    amount: Decimal
+    payment_method: str
+    reference_code: Optional[str] = None
+
+class CreditCollectionsResponse(BaseModel):
+    start_date: date
+    end_date: date
+    total: Decimal
+    items: List[CreditCollectionItem]

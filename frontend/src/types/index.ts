@@ -100,7 +100,9 @@ export interface Invoice {
   discount: number | string;
   total: number | string;
   amount_paid: number | string;
+  direct_amount_paid?: number | string;
   balance: number | string;
+  is_credit?: boolean;
   status: string;
   void_reason?: string;
   notes?: string;
@@ -121,6 +123,8 @@ export interface DashboardStats {
 export interface ReportSummary {
   gross_sales_value: number | string;
   cash_received: number | string;
+  direct_cash_sales: number | string;
+  credit_collections: number | string;
   uncollected_debts: number | string;
   total_customer_accounts: number;
   top_selling_products?: {
@@ -128,5 +132,35 @@ export interface ReportSummary {
     price_formatted: string;
     sales_amount: number | string;
     qty_sold: number | string;
+  }[];
+}
+
+export interface CashBreakdownItem {
+  payment_date: string;
+  cash: number | string;
+  bank_transfer: number | string;
+  mpesa: number | string;
+  total: number | string;
+}
+
+export interface CashBreakdown {
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  start_date: string;
+  end_date: string;
+  items: CashBreakdownItem[];
+  total: number | string;
+}
+
+export interface CreditCollections {
+  start_date: string;
+  end_date: string;
+  total: number | string;
+  items: {
+    payment_date: string;
+    receipt_no: string;
+    customer_name: string;
+    amount: number | string;
+    payment_method: string;
+    reference_code?: string;
   }[];
 }
