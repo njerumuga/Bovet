@@ -1,4 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const configuredApiBase = (import.meta.env.VITE_API_URL || '').trim();
+const API_BASE = configuredApiBase || (
+  window.location.hostname.endsWith('.onrender.com')
+    ? 'https://bovet-api.onrender.com/api'
+    : '/api'
+);
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');

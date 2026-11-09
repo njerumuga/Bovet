@@ -65,25 +65,30 @@ export const App: React.FC = () => {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
   const loadData = async () => {
-    try {
-      const [prods, custs, invs, dStats, rep, receipts] = await Promise.all([
-        apiFetch<Product[]>('/products'),
-        apiFetch<Customer[]>('/customers'),
-        apiFetch<Invoice[]>('/invoices'),
-        apiFetch<DashboardStats>('/dashboard/stats'),
-        apiFetch<ReportSummary>('/reports/summary'),
-        apiFetch<Receipt[]>('/invoices/receipts/all'),
-      ]);
+    const load = async <T,>(endpoint: string, label: string): Promise<T | null> => {
+      try {
+        return await apiFetch<T>(endpoint);
+      } catch (error) {
+        console.warn(`Failed to load ${label}:`, error);
+        return null;
+      }
+    };
 
-      if (prods) setProducts(prods);
-      if (custs) setCustomers(custs);
-      if (invs) setInvoices(invs);
-      if (dStats) setStats(dStats);
-      if (rep) setReportSummary(rep);
-      setRecentReceipts(receipts);
-    } catch (e) {
-      console.warn('Error loading data:', e);
-    }
+    const [prods, custs, invs, dStats, rep, receipts] = await Promise.all([
+      load<Product[]>('/products', 'products'),
+      load<Customer[]>('/customers', 'customers'),
+      load<Invoice[]>('/invoices', 'invoices'),
+      load<DashboardStats>('/dashboard/stats', 'dashboard stats'),
+      load<ReportSummary>('/reports/summary', 'report summary'),
+      load<Receipt[]>('/invoices/receipts/all', 'receipts'),
+    ]);
+
+    if (prods) setProducts(prods);
+    if (custs) setCustomers(custs);
+    if (invs) setInvoices(invs);
+    if (dStats) setStats(dStats);
+    if (rep) setReportSummary(rep);
+    if (receipts) setRecentReceipts(receipts);
   };
 
   const notifications: AppNotification[] = [
