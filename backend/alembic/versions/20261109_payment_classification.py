@@ -13,7 +13,7 @@ depends_on = None
 def upgrade():
     op.add_column("invoices", sa.Column("is_credit", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column("payments", sa.Column("payment_type", sa.Text(), nullable=False, server_default="direct_sale"))
-    op.execute("UPDATE invoices SET is_credit = CASE WHEN balance > 0 OR status IN ('arrears', 'unpaid', 'partially_paid') THEN 1 ELSE 0 END")
+    op.execute("UPDATE invoices SET is_credit = CASE WHEN balance > 0 OR status IN ('arrears', 'unpaid', 'partially_paid') THEN TRUE ELSE FALSE END")
     op.execute("UPDATE payments SET payment_type = CASE WHEN notes LIKE 'Settlement for %' THEN 'credit_collection' ELSE 'direct_sale' END")
 
 def downgrade():
