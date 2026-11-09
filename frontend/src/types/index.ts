@@ -113,6 +113,8 @@ export interface Invoice {
 
 export interface DashboardStats {
   total_sales_revenue: number | string;
+  total_cash_received: number | string;
+  credit_payments_received: number | string;
   total_sales_growth: string;
   total_pending_arrears: number | string;
   low_stock_alerts_count: number;

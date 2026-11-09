@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.db.models.invoice import Invoice
 from app.db.models.customer import Customer
 from app.db.models.product import Product
+from app.db.models.payment import Payment
 from app.db.models.user import User
 from app.schemas.dashboard import DashboardStatsResponse, ChartDataPoint
 from app.schemas.invoice import InvoiceResponse
@@ -29,6 +30,14 @@ def get_dashboard_stats(
     pending_arrears = db.query(func.coalesce(func.sum(Invoice.balance), 0))\
         .filter(Invoice.status != 'void')\
         .scalar()
+    total_cash_received = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
+        Payment.payment_type == "direct_sale",
+        Payment.invoice.has(Invoice.status != "void"),
+    ).scalar()
+    credit_payments_received = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
+        Payment.payment_type == "credit_collection",
+        Payment.invoice.has(Invoice.status != "void"),
+    ).scalar()
 
     # Low stock alerts count
     low_stock_count = db.query(Product)\
@@ -53,6 +62,8 @@ def get_dashboard_stats(
 
     return DashboardStatsResponse(
         total_sales_revenue=Decimal(str(total_sales)),
+        total_cash_received=Decimal(str(total_cash_received)),
+        credit_payments_received=Decimal(str(credit_payments_received)),
         total_sales_growth="+12.4% vs last month",
         total_pending_arrears=Decimal(str(pending_arrears)),
         low_stock_alerts_count=low_stock_count,

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { DollarSign, Clock, AlertTriangle, Users, ArrowUpRight } from 'lucide-react';
+import { DollarSign, Clock, AlertTriangle, Users, ArrowUpRight, WalletCards } from 'lucide-react';
 import { StatCard } from '../../components/StatCard';
 import { Customer, Invoice, Product, DashboardStats } from '../../types';
 import { formatKsh } from '../../lib/utils';
@@ -108,7 +108,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-8">
       {/* 4 Key Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard
           title="Total Sales Revenue"
           value={formatKsh(filteredRevenue)}
@@ -124,6 +124,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           badgeType="warning"
           icon={Clock}
           iconBgColor="bg-amber-50 text-amber-600"
+          onClick={() => onNavigate('sales')}
+        />
+        <StatCard
+          title="Total Cash Received"
+          value={formatKsh(stats.total_cash_received)}
+          badgeText="Direct sales statement"
+          badgeType="success"
+          icon={WalletCards}
+          iconBgColor="bg-emerald-50 text-emerald-600"
+          onClick={() => onNavigate('sales')}
+        />
+        <StatCard
+          title="Credit Payments Received"
+          value={formatKsh(stats.credit_payments_received)}
+          badgeText="Debt recovery statement"
+          badgeType="info"
+          icon={WalletCards}
+          iconBgColor="bg-blue-50 text-blue-600"
+          onClick={() => onNavigate('sales')}
         />
         <StatCard
           title="Low Stock SKUs"

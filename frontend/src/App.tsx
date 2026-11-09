@@ -38,6 +38,8 @@ export const App: React.FC = () => {
   const [recentReceipts, setRecentReceipts] = useState<Receipt[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     total_sales_revenue: 0,
+    total_cash_received: 0,
+    credit_payments_received: 0,
     total_sales_growth: 'No data yet',
     total_pending_arrears: 0,
     low_stock_alerts_count: 0,

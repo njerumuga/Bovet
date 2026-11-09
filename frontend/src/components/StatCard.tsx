@@ -8,6 +8,7 @@ interface StatCardProps {
   badgeType?: 'success' | 'warning' | 'danger' | 'info';
   icon: LucideIcon;
   iconBgColor?: string;
+  onClick?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -17,6 +18,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   badgeType = 'success',
   icon: Icon,
   iconBgColor = 'bg-emerald-50 text-emerald-600',
+  onClick,
 }) => {
   const getBadgeClass = () => {
     switch (badgeType) {
@@ -33,7 +35,15 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+    <div
+      className={`bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between hover:shadow-md transition ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') onClick();
+      } : undefined}
+    >
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{title}</span>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBgColor}`}>

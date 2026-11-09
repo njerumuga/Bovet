@@ -10,6 +10,8 @@ class ChartDataPoint(BaseModel):
 
 class DashboardStatsResponse(BaseModel):
     total_sales_revenue: Decimal
+    total_cash_received: Decimal = Decimal("0.00")
+    credit_payments_received: Decimal = Decimal("0.00")
     total_sales_growth: str = "+12.4% vs last month"
     total_pending_arrears: Decimal
     low_stock_alerts_count: int

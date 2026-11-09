@@ -31,6 +31,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [cashLoading, setCashLoading] = useState(false);
   const [creditCollections, setCreditCollections] = useState<CreditCollections | null>(null);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [arrearsStatementOpen, setArrearsStatementOpen] = useState(false);
 
   useEffect(() => {
     apiFetch<CreditCollections>('/reports/credit-collections')
@@ -150,7 +151,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <CreditCard className="w-5 h-5" />
           </div>
         </button>
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <button type="button" onClick={() => setArrearsStatementOpen(true)} className="text-left bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-amber-300 hover:shadow-md transition">
           <div>
             <div className="text-xs font-bold text-amber-600 uppercase">Uncollected Arrears</div>
             <div className="text-xl font-black text-amber-600 mt-1">{formatKsh(totalArrears)}</div>
@@ -158,7 +159,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-sm">
             <CreditCard className="w-5 h-5" />
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main Table Card */}
@@ -391,7 +392,27 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <tfoot><tr><td className="py-4 font-black" colSpan={5}>Total credit payments received</td><td className="py-4 text-right font-black text-amber-700">{formatKsh(creditCollections.total)}</td></tr></tfoot>
                   </table>
                 )}
-              </div>
+                      </div>
+            </div>
+          </div>
+        )}
+        {arrearsStatementOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden">
+                      <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                          <h2 className="text-base font-black text-slate-900">Uncollected Arrears Statement</h2>
+                          <p className="text-xs text-slate-500">Outstanding balances by farmer and invoice.</p>
+                        </div>
+                        <button onClick={() => setArrearsStatementOpen(false)} className="text-slate-400 hover:text-slate-700"><X /></button>
+                      </div>
+                      <div className="p-5 overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead><tr className="text-left text-slate-500 uppercase border-b"><th className="py-3">Farmer</th><th className="py-3">Invoice</th><th className="py-3">Date</th><th className="py-3 text-right">Original</th><th className="py-3 text-right">Paid</th><th className="py-3 text-right">Outstanding</th></tr></thead>
+                          <tbody>{filteredInvoices.filter((invoice) => Number(invoice.balance) > 0).map((invoice) => <tr key={invoice.id} className="border-b border-slate-100"><td className="py-3 font-bold">{invoice.customer_name}</td><td className="py-3">{invoice.invoice_no}</td><td className="py-3">{invoice.invoice_date}</td><td className="py-3 text-right">{formatKsh(invoice.total)}</td><td className="py-3 text-right text-emerald-700">{formatKsh(invoice.amount_paid)}</td><td className="py-3 text-right font-black text-amber-700">{formatKsh(invoice.balance)}</td></tr>)}</tbody>
+                          <tfoot><tr><td className="py-4 font-black" colSpan={5}>Total outstanding</td><td className="py-4 text-right font-black text-amber-700">{formatKsh(filteredInvoices.filter((invoice) => Number(invoice.balance) > 0).reduce((sum, invoice) => sum + Number(invoice.balance), 0))}</td></tr></tfoot>
+                        </table>
+                      </div>
             </div>
           </div>
         )}
