@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search, DollarSign, Eye, CreditCard, Ban, FileDown, Receipt as ReceiptIcon, X } from 'lucide-react';
-import { CashBreakdown, Invoice, Receipt } from '../../types';
+import { CashBreakdown, CreditCollections, Invoice, Receipt } from '../../types';
 import { formatKsh } from '../../lib/utils';
 import { apiFetch } from '../../api/client';
 
@@ -29,6 +29,14 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [cashBreakdown, setCashBreakdown] = useState<CashBreakdown | null>(null);
   const [cashPeriod, setCashPeriod] = useState<CashBreakdown['period']>('daily');
   const [cashLoading, setCashLoading] = useState(false);
+  const [creditCollections, setCreditCollections] = useState<CreditCollections | null>(null);
+  const [creditLoading, setCreditLoading] = useState(false);
+
+  useEffect(() => {
+    apiFetch<CreditCollections>('/reports/credit-collections')
+      .then(setCreditCollections)
+      .catch(() => setCreditCollections(null));
+  }, []);
 
   const openCashBreakdown = async (period = cashPeriod) => {
     setCashLoading(true);
@@ -37,6 +45,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
       setCashBreakdown(data);
     } finally {
       setCashLoading(false);
+    }
+  };
+
+  const openCreditCollections = async () => {
+    setCreditLoading(true);
+    try {
+      setCreditCollections(await apiFetch<CreditCollections>('/reports/credit-collections'));
+    } finally {
+      setCreditLoading(false);
     }
   };
 
@@ -103,7 +120,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner Summaries */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-xs font-bold text-slate-500 uppercase">Total Sales</div>
@@ -115,12 +132,22 @@ export const SalesView: React.FC<SalesViewProps> = ({
         </div>
         <button type="button" onClick={() => openCashBreakdown()} className="text-left bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-emerald-300 hover:shadow-md transition">
           <div>
-            <div className="text-xs font-bold text-emerald-600 uppercase">Cash In Hand (Paid)</div>
+            <div className="text-xs font-bold text-emerald-600 uppercase">Total Cash Received</div>
             <div className="text-xl font-black text-emerald-600 mt-1">{formatKsh(totalCollected)}</div>
-            <span className="text-[10px] font-bold text-emerald-700">View cash breakdown</span>
+            <span className="text-[10px] font-bold text-emerald-700">Cash + electronic sales</span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-sm">
             <DollarSign className="w-5 h-5" />
+          </div>
+        </button>
+        <button type="button" onClick={openCreditCollections} className="text-left bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-amber-300 hover:shadow-md transition">
+          <div>
+            <div className="text-xs font-bold text-amber-600 uppercase">Credit Payments Received</div>
+            <div className="text-xl font-black text-amber-600 mt-1">{formatKsh(creditCollections?.total ?? 0)}</div>
+            <span className="text-[10px] font-bold text-amber-700">View payer statement</span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+            <CreditCard className="w-5 h-5" />
           </div>
         </button>
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
@@ -319,8 +346,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-black text-slate-900">Cash In Hand (Paid)</h2>
-                  <p className="text-xs text-slate-500">Direct sale receipts only; credit recoveries are excluded.</p>
+                  <h2 className="text-base font-black text-slate-900">Total Cash Received</h2>
+                  <p className="text-xs text-slate-500">Immediate sales through Cash, Bank Transfer, and M-Pesa.</p>
                 </div>
                 <button onClick={() => setCashBreakdown(null)} className="text-slate-400 hover:text-slate-700"><X /></button>
               </div>
@@ -333,11 +360,35 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     </button>
                   ))}
                 </div>
-                {cashLoading ? <div className="py-8 text-center text-sm text-slate-500">Loading breakdown...</div> : (
+                {cashLoading ? <div className="py-8 text-center text-sm text-slate-500">Loading breakdown...</div> : (<>
                   <table className="w-full text-xs">
                     <thead><tr className="text-left text-slate-500 uppercase border-b"><th className="py-3">Date</th><th className="py-3 text-right">Cash</th><th className="py-3 text-right">Bank Transfer</th><th className="py-3 text-right">M-Pesa</th><th className="py-3 text-right">Total</th></tr></thead>
                     <tbody>{cashBreakdown.items.map((item) => <tr key={item.payment_date} className="border-b border-slate-100"><td className="py-3">{item.payment_date}</td><td className="py-3 text-right">{formatKsh(item.cash)}</td><td className="py-3 text-right">{formatKsh(item.bank_transfer)}</td><td className="py-3 text-right">{formatKsh(item.mpesa)}</td><td className="py-3 text-right font-black">{formatKsh(item.total)}</td></tr>)}</tbody>
                     <tfoot><tr><td className="py-3 font-black">Total</td><td colSpan={3}></td><td className="py-3 text-right font-black text-emerald-700">{formatKsh(cashBreakdown.total)}</td></tr></tfoot>
+                  </table>
+                  <h3 className="mt-7 mb-2 text-xs font-black uppercase text-slate-600">Who paid</h3>
+                  <table className="w-full text-xs">
+                    <thead><tr className="text-left text-slate-500 uppercase border-b"><th className="py-3">Date</th><th className="py-3">Customer</th><th className="py-3">Receipt</th><th className="py-3">Method</th><th className="py-3 text-right">Amount</th></tr></thead>
+                    <tbody>{cashBreakdown.transactions.map((item) => <tr key={item.receipt_no} className="border-b border-slate-100"><td className="py-3">{item.payment_date}</td><td className="py-3 font-bold">{item.customer_name}</td><td className="py-3">{item.receipt_no}</td><td className="py-3">{item.payment_method}</td><td className="py-3 text-right font-black">{formatKsh(item.amount)}</td></tr>)}</tbody>
+                  </table>
+                </>)}
+              </div>
+            </div>
+          </div>
+        )}
+        {creditCollections && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div><h2 className="text-base font-black text-slate-900">Credit Payments Received</h2><p className="text-xs text-slate-500">Debt recovery payments, separate from immediate sales.</p></div>
+                <button onClick={() => setCreditCollections(null)} className="text-slate-400 hover:text-slate-700"><X /></button>
+              </div>
+              <div className="p-5">
+                {creditLoading ? <div className="py-8 text-center text-sm text-slate-500">Loading statement...</div> : (
+                  <table className="w-full text-xs">
+                    <thead><tr className="text-left text-slate-500 uppercase border-b"><th className="py-3">Date</th><th className="py-3">Customer</th><th className="py-3">Receipt</th><th className="py-3">Method</th><th className="py-3">Reference</th><th className="py-3 text-right">Amount</th></tr></thead>
+                    <tbody>{creditCollections.items.map((item) => <tr key={item.receipt_no} className="border-b border-slate-100"><td className="py-3">{item.payment_date}</td><td className="py-3 font-bold">{item.customer_name}</td><td className="py-3">{item.receipt_no}</td><td className="py-3">{item.payment_method}</td><td className="py-3">{item.reference_code || '-'}</td><td className="py-3 text-right font-black text-amber-700">{formatKsh(item.amount)}</td></tr>)}</tbody>
+                    <tfoot><tr><td className="py-4 font-black" colSpan={5}>Total credit payments received</td><td className="py-4 text-right font-black text-amber-700">{formatKsh(creditCollections.total)}</td></tr></tfoot>
                   </table>
                 )}
               </div>

@@ -148,6 +148,14 @@ export interface CashBreakdown {
   start_date: string;
   end_date: string;
   items: CashBreakdownItem[];
+  transactions: {
+    payment_date: string;
+    receipt_no: string;
+    customer_name: string;
+    amount: number | string;
+    payment_method: string;
+    reference_code?: string;
+  }[];
   total: number | string;
 }
 

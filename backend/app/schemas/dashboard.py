@@ -42,11 +42,20 @@ class PaymentBreakdownItem(BaseModel):
     mpesa: Decimal
     total: Decimal
 
+class DirectPaymentItem(BaseModel):
+    payment_date: date
+    receipt_no: str
+    customer_name: str
+    amount: Decimal
+    payment_method: str
+    reference_code: Optional[str] = None
+
 class PaymentBreakdownResponse(BaseModel):
     period: str
     start_date: date
     end_date: date
     items: List[PaymentBreakdownItem]
+    transactions: List[DirectPaymentItem]
     total: Decimal
 
 class CreditCollectionItem(BaseModel):

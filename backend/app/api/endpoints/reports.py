@@ -12,7 +12,7 @@ from app.db.models.product import Product
 from app.db.models.payment import Payment
 from app.db.models.user import User
 from app.schemas.dashboard import (
-    CreditCollectionItem, CreditCollectionsResponse, PaymentBreakdownItem,
+    CreditCollectionItem, CreditCollectionsResponse, DirectPaymentItem, PaymentBreakdownItem,
     PaymentBreakdownResponse, ReportsSummaryResponse, TopProductItem,
 )
 from app.api.deps import get_current_user
@@ -129,7 +129,19 @@ def get_cash_breakdown(
                              mpesa=values["mpesa"], total=sum(values.values(), Decimal("0")))
         for day, values in sorted(grouped.items())
     ]
+    transactions = [
+        DirectPaymentItem(
+            payment_date=p.payment_date,
+            receipt_no=p.receipt_no,
+            customer_name=p.customer.name if p.customer else "Valued Farmer",
+            amount=p.amount,
+            payment_method=p.payment_method,
+            reference_code=p.reference_code,
+        )
+        for p in payments
+    ]
     return PaymentBreakdownResponse(period=period, start_date=start, end_date=end, items=items,
+                                    transactions=transactions,
                                     total=sum((item.total for item in items), Decimal("0")))
 
 @router.get("/credit-collections", response_model=CreditCollectionsResponse)
