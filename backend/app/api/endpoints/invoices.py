@@ -45,6 +45,14 @@ def validate_payment_reference(
     if not reference:
         return None
 
+    if method in {"m-pesa", "mpesa"}:
+        normalized_code = reference.upper()
+        if not re.fullmatch(r"[A-Z0-9]{10}", normalized_code):
+            raise HTTPException(
+                status_code=400,
+                detail="M-Pesa transaction code must be exactly 10 alphanumeric characters.",
+            )
+
     normalized_reference = normalize_payment_reference(reference)
     if not normalized_reference:
         raise HTTPException(status_code=400, detail="Payment reference code cannot be empty.")

@@ -34,6 +34,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     setError(null);
   }, [invoice]);
 
+  const normalizeMpesaCode = (value: string) => value.replace(/[^A-Z0-9]/gi, '').slice(0, 10).toUpperCase();
+
   if (!invoice) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,6 +47,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     if (paymentMethod !== 'Cash' && !referenceCode.trim()) {
       setError(`A payment reference code is required for ${paymentMethod}.`);
       return;
+    }
+    if (paymentMethod === 'M-Pesa') {
+      const normalizedCode = normalizeMpesaCode(referenceCode);
+      if (!/^[A-Z0-9]{10}$/.test(normalizedCode)) {
+        setError('M-Pesa transaction code must be exactly 10 alphanumeric characters.');
+        return;
+      }
+      setReferenceCode(normalizedCode);
     }
     setError(null);
     setLoading(true);
@@ -175,7 +185,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <input
                 type="text"
                 value={referenceCode}
-                onChange={(e) => setReferenceCode(e.target.value)}
+                maxLength={10}
+                onChange={(e) => setReferenceCode(normalizeMpesaCode(e.target.value))}
                 required={paymentMethod !== 'Cash'}
                 placeholder={paymentMethod === 'Cash' ? 'Optional for cash' : 'Required e.g. QJD928DKL'}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"

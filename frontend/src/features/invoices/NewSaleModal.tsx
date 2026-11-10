@@ -264,6 +264,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                             value: p.id,
                             label: `${p.name} (${p.category}) - Stock: ${p.qty_on_hand} ${p.base_unit}`,
                           }))}
+                          compact
                           className="w-full"
                         />
                       </div>
@@ -407,6 +408,7 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                       { value: 'Cash', label: 'Cash at Counter' },
                       { value: 'Bank Transfer', label: 'Bank Deposit' },
                     ]}
+                    compact
                   />
                 </div>
 
@@ -415,7 +417,8 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                   <input
                     type="text"
                     value={referenceCode}
-                    onChange={(e) => setReferenceCode(e.target.value)}
+                    maxLength={10}
+                    onChange={(e) => setReferenceCode(e.target.value.replace(/[^A-Z0-9]/gi, '').slice(0, 10).toUpperCase())}
                     placeholder={amountPaid > 0 && paymentMethod !== 'Cash' ? 'Required e.g. QJD928DKL' : 'Optional'}
                     className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800"
                   />

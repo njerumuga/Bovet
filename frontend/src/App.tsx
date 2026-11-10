@@ -21,7 +21,8 @@ import { AppNotification, Customer, CustomerPayment, Invoice, Product, Dashboard
 import { apiFetch } from './api/client';
 import { formatKsh } from './lib/utils';
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+const TOKEN_REFRESH_MS = 10 * 60 * 1000;
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -130,46 +131,54 @@ export const App: React.FC = () => {
       localStorage.removeItem('user');
       setCurrentUser(null);
     };
+
     const resetIdleTimer = () => {
       window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(expireSession, IDLE_TIMEOUT_MS);
     };
-    const activityEvents: (keyof WindowEventMap)[] = [
+
+    const activityEvents = [
       'mousedown',
       'mousemove',
       'keydown',
       'scroll',
       'touchstart',
       'click',
-    ];
+      'visibilitychange',
+      'focus',
+    ] as const;
+
+    const handleActivity = () => {
+      resetIdleTimer();
+    };
 
     activityEvents.forEach((eventName) => {
-      window.addEventListener(eventName, resetIdleTimer);
+      window.addEventListener(eventName, handleActivity);
     });
     resetIdleTimer();
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      activityEvents.forEach((eventName) => {
-        window.removeEventListener(eventName, resetIdleTimer);
-      });
-    };
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (!currentUser) return;
 
     const refreshToken = async () => {
       try {
         const response = await apiFetch<{ access_token: string }>('/auth/refresh', { method: 'POST' });
-        localStorage.setItem('token', response.access_token);
+        if (response?.access_token) {
+          localStorage.setItem('token', response.access_token);
+          resetIdleTimer();
+        }
       } catch {
-        // The normal API 401 handler remains responsible for ending an invalid session.
+        // Keep the active session alive while the app is in use; invalid tokens are handled by the normal auth flow.
       }
     };
 
-    const refreshId = window.setInterval(refreshToken, 4 * 60 * 60 * 1000);
-    return () => window.clearInterval(refreshId);
+    refreshToken();
+    const refreshId = window.setInterval(refreshToken, TOKEN_REFRESH_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, handleActivity);
+      });
+      window.clearInterval(refreshId);
+    };
   }, [currentUser]);
 
   useEffect(() => {

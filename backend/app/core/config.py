@@ -5,8 +5,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./bovet.db"
     SECRET_KEY: Optional[str] = None
     OTP_HMAC_KEY: Optional[str] = None
-    ACCESS_TOKEN_MINUTES: int = 720
-    REFRESH_IDLE_MINUTES: int = 300
+    ACCESS_TOKEN_MINUTES: int = 1440
+    REFRESH_IDLE_MINUTES: int = 60
     OTP_EXPIRY_MINUTES: int = 5
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587

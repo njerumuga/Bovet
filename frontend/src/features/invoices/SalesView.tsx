@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, DollarSign, Eye, CreditCard, Ban, FileDown, Receipt as ReceiptIcon, X } from 'lucide-react';
 import { CashBreakdown, CreditCollections, Invoice, Receipt } from '../../types';
 import { formatKsh } from '../../lib/utils';
@@ -31,6 +31,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [cashLoading, setCashLoading] = useState(false);
   const [creditCollections, setCreditCollections] = useState<CreditCollections | null>(null);
   const [creditLoading, setCreditLoading] = useState(false);
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
   const [arrearsStatementOpen, setArrearsStatementOpen] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,11 @@ export const SalesView: React.FC<SalesViewProps> = ({
       .then(setCreditCollections)
       .catch(() => setCreditCollections(null));
   }, []);
+
+  const creditPaymentsTotal = useMemo(() => {
+    const total = creditCollections?.items.reduce((sum, item) => sum + Number(item.amount || 0), 0) ?? 0;
+    return total;
+  }, [creditCollections]);
 
   const openCashBreakdown = async (period = cashPeriod) => {
     setCashLoading(true);
@@ -52,7 +58,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const openCreditCollections = async () => {
     setCreditLoading(true);
     try {
-      setCreditCollections(await apiFetch<CreditCollections>('/reports/credit-collections'));
+      const data = await apiFetch<CreditCollections>('/reports/credit-collections');
+      setCreditCollections(data);
     } finally {
       setCreditLoading(false);
     }
@@ -141,10 +148,17 @@ export const SalesView: React.FC<SalesViewProps> = ({
             <DollarSign className="w-5 h-5" />
           </div>
         </button>
-        <button type="button" onClick={openCreditCollections} className="text-left bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-amber-300 hover:shadow-md transition">
+        <button
+          type="button"
+          onClick={() => {
+            setIsCreditModalOpen(true);
+            void openCreditCollections();
+          }}
+          className="text-left bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-amber-300 hover:shadow-md transition"
+        >
           <div>
             <div className="text-xs font-bold text-amber-600 uppercase">Credit Payments Received</div>
-            <div className="text-xl font-black text-amber-600 mt-1">{formatKsh(creditCollections?.total ?? 0)}</div>
+            <div className="text-xl font-black text-amber-600 mt-1">{formatKsh(creditPaymentsTotal)}</div>
             <span className="text-[10px] font-bold text-amber-700">View payer statement</span>
           </div>
           <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
@@ -377,12 +391,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
             </div>
           </div>
         )}
-        {creditCollections && (
+        {isCreditModalOpen && creditCollections && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div><h2 className="text-base font-black text-slate-900">Credit Payments Received</h2><p className="text-xs text-slate-500">Debt recovery payments, separate from immediate sales.</p></div>
-                <button onClick={() => setCreditCollections(null)} className="text-slate-400 hover:text-slate-700"><X /></button>
+                <button onClick={() => setIsCreditModalOpen(false)} className="text-slate-400 hover:text-slate-700"><X /></button>
               </div>
               <div className="p-5">
                 {creditLoading ? <div className="py-8 text-center text-sm text-slate-500">Loading statement...</div> : (
@@ -392,7 +406,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                     <tfoot><tr><td className="py-4 font-black" colSpan={5}>Total credit payments received</td><td className="py-4 text-right font-black text-amber-700">{formatKsh(creditCollections.total)}</td></tr></tfoot>
                   </table>
                 )}
-                      </div>
+              </div>
             </div>
           </div>
         )}
