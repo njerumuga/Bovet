@@ -19,6 +19,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
   const [category, setCategory] = useState('Fertilizers');
   const [baseUnit, setBaseUnit] = useState('kg');
   const [pricePerUnit, setPricePerUnit] = useState<number>(100);
+  const [costPrice, setCostPrice] = useState<number>(0);
   const [packSize, setPackSize] = useState<number | undefined>(50);
   const [pricePerPack, setPricePerPack] = useState<number | undefined>(4500);
   const [qtyOnHand, setQtyOnHand] = useState<number>(0);
@@ -41,6 +42,8 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
           category,
           base_unit: baseUnit,
           price_per_unit: pricePerUnit,
+          selling_price: pricePerUnit,
+          cost_price: costPrice,
           pack_size: packSize || undefined,
           price_per_pack: pricePerPack || undefined,
           qty_on_hand: qtyOnHand,
@@ -118,17 +121,36 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Price per Base Unit (KSh)
+                Buying Price per Base Unit (KSh)
               </label>
               <input
                 type="number"
+                min="0"
+                step="0.01"
+                value={costPrice}
+                onChange={(e) => setCostPrice(Number(e.target.value))}
+                required
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Selling Price per Base Unit (KSh)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
                 value={pricePerUnit}
                 onChange={(e) => setPricePerUnit(Number(e.target.value))}
                 required
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                 Pack Size (Optional)

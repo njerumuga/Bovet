@@ -15,6 +15,7 @@ class InvoiceLine(Base):
     qty_entered = Column(NUMERIC(12,3), nullable=False)
     base_qty = Column(NUMERIC(12,3), nullable=False)
     unit_price = Column(NUMERIC(14,2), nullable=False)
+    cost_price = Column(NUMERIC(14,2), nullable=False, default=0)
     list_price = Column(NUMERIC(14,2), nullable=False)
     line_amount = Column(NUMERIC(14,2), nullable=False)
 

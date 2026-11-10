@@ -30,7 +30,9 @@ def enrich_product(p: Product) -> ProductResponse:
         base_unit=p.base_unit,
         pack_size=p.pack_size,
         price_per_unit=p.price_per_unit,
+        selling_price=p.price_per_unit,
         price_per_pack=p.price_per_pack,
+        cost_price=p.cost_price,
         qty_on_hand=p.qty_on_hand,
         low_stock_level=p.low_stock_level,
         status=p.status,
@@ -65,13 +67,17 @@ def create_product(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    selling_price = req.selling_price if req.selling_price is not None else req.price_per_unit
+    if selling_price is None:
+        raise HTTPException(status_code=422, detail="A selling price is required")
     product = Product(
         name=req.name.strip(),
         category=req.category.strip(),
         base_unit=req.base_unit.strip(),
         pack_size=req.pack_size,
-        price_per_unit=req.price_per_unit,
-        price_per_pack=req.price_per_pack or req.price_per_unit,
+        price_per_unit=selling_price,
+        price_per_pack=req.price_per_pack or selling_price,
+        cost_price=req.cost_price,
         qty_on_hand=req.qty_on_hand or Decimal("0"),
         low_stock_level=req.low_stock_level or Decimal("5"),
         status=req.status or "active"
@@ -87,6 +93,7 @@ def create_product(
             type="opening",
             qty_change=product.qty_on_hand,
             qty_after=product.qty_on_hand,
+            cost_price=product.cost_price,
             reason="Initial stock",
             created_by=current_user.id
         )
@@ -143,6 +150,10 @@ def update_product(
         product.pack_size = req.pack_size
     if req.price_per_unit is not None:
         product.price_per_unit = req.price_per_unit
+    elif req.selling_price is not None:
+        product.price_per_unit = req.selling_price
+    if req.cost_price is not None:
+        product.cost_price = req.cost_price
     if req.price_per_pack is not None:
         product.price_per_pack = req.price_per_pack
     if req.qty_on_hand is not None:
@@ -205,13 +216,17 @@ def restock_product(
 
     if req.qty <= 0:
         raise HTTPException(status_code=400, detail="Restock quantity must be positive")
+    if req.cost_price < 0:
+        raise HTTPException(status_code=400, detail="Cost price cannot be negative")
 
     product.qty_on_hand += req.qty
+    product.cost_price = req.cost_price
     mov = StockMovement(
         product_id=product.id,
         type="stock_in",
         qty_change=req.qty,
         qty_after=product.qty_on_hand,
+        cost_price=req.cost_price,
         reason=req.reason or "Restock shipment",
         created_by=current_user.id
     )

@@ -95,6 +95,7 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
             qty_entered=line.qty_entered,
             base_qty=line.base_qty,
             unit_price=line.unit_price,
+            cost_price=line.cost_price,
             list_price=line.list_price,
             line_amount=line.line_amount
         )
@@ -331,6 +332,7 @@ def create_invoice(
             qty_entered=qty,
             base_qty=qty,
             unit_price=item.unit_price,
+            cost_price=product.cost_price,
             list_price=product.price_per_unit,
             line_amount=line_amount
         )
@@ -374,6 +376,7 @@ def create_invoice(
             type="sale",
             qty_change=-qty,
             qty_after=product.qty_on_hand,
+            cost_price=product.cost_price,
             reason=f"Sale {invoice.invoice_no}",
             invoice_id=invoice.id,
             created_by=current_user.id
@@ -537,6 +540,7 @@ def void_invoice(
                 type="void",
                 qty_change=line.base_qty,
                 qty_after=product.qty_on_hand,
+                cost_price=line.cost_price,
                 reason=f"Void invoice {inv.invoice_no}: {reason}",
                 invoice_id=inv.id,
                 created_by=current_user.id

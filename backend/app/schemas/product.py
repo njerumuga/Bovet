@@ -8,7 +8,9 @@ class ProductBase(BaseModel):
     category: str
     base_unit: str
     pack_size: Optional[Decimal] = None
-    price_per_unit: Decimal
+    price_per_unit: Optional[Decimal] = None
+    selling_price: Optional[Decimal] = None
+    cost_price: Decimal = Decimal("0.00")
     price_per_pack: Optional[Decimal] = None
     qty_on_hand: Optional[Decimal] = Decimal("0")
     low_stock_level: Optional[Decimal] = Decimal("5")
@@ -23,6 +25,8 @@ class ProductUpdate(BaseModel):
     base_unit: Optional[str] = None
     pack_size: Optional[Decimal] = None
     price_per_unit: Optional[Decimal] = None
+    selling_price: Optional[Decimal] = None
+    cost_price: Optional[Decimal] = None
     price_per_pack: Optional[Decimal] = None
     qty_on_hand: Optional[Decimal] = None
     low_stock_level: Optional[Decimal] = None
@@ -30,10 +34,12 @@ class ProductUpdate(BaseModel):
 
 class RestockRequest(BaseModel):
     qty: Decimal
+    cost_price: Decimal
     reason: Optional[str] = "Restock shipment"
 
 class ProductResponse(ProductBase):
     id: int
+    selling_price: Decimal
     stock_status: str = "IN STOCK" # IN STOCK, LOW STOCK, OUT OF STOCK
     created_at: datetime
     updated_at: datetime

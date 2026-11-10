@@ -49,6 +49,8 @@ export interface Product {
   base_unit: string;
   pack_size?: number | string | null;
   price_per_unit: number | string;
+  selling_price?: number | string;
+  cost_price: number | string;
   price_per_pack?: number | string | null;
   qty_on_hand: number | string;
   low_stock_level: number | string;
@@ -135,6 +137,15 @@ export interface ReportSummary {
     sales_amount: number | string;
     qty_sold: number | string;
   }[];
+}
+
+export interface ProfitReport {
+  period: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  start_date: string;
+  end_date: string;
+  revenue: number | string;
+  cogs: number | string;
+  net_profit: number | string;
 }
 
 export interface CashBreakdownItem {

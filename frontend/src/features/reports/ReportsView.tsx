@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DollarSign, Printer, FileDown, TrendingUp, CreditCard, Users, ShoppingBag, AlertTriangle, Calendar, Layers } from 'lucide-react';
-import { CreditCollections, Customer, Invoice, Product, ReportSummary } from '../../types';
+import { CreditCollections, Customer, Invoice, Product, ProfitReport, ReportSummary } from '../../types';
 import { formatKsh } from '../../lib/utils';
 import { apiFetch } from '../../api/client';
 
@@ -22,12 +22,33 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [creditCollections, setCreditCollections] = useState<CreditCollections | null>(null);
+  const [profitPeriod, setProfitPeriod] = useState<ProfitReport['period']>('monthly');
+  const [profitReport, setProfitReport] = useState<ProfitReport | null>(null);
+  const [profitLoading, setProfitLoading] = useState(false);
 
   useEffect(() => {
     apiFetch<CreditCollections>('/reports/credit-collections')
       .then(setCreditCollections)
       .catch(() => setCreditCollections(null));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setProfitLoading(true);
+    apiFetch<ProfitReport>(`/reports/profit?period=${profitPeriod}`)
+      .then((report) => {
+        if (active) setProfitReport(report);
+      })
+      .catch(() => {
+        if (active) setProfitReport(null);
+      })
+      .finally(() => {
+        if (active) setProfitLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [profitPeriod]);
 
   const handlePrint = () => {
     const previousTitle = document.title;
@@ -211,6 +232,56 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div className="text-2xl font-black text-slate-900">{customers.length}</div>
               <p className="text-[11px] text-blue-600 font-bold mt-1.5">Registered Farmers</p>
             </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Profit Analytics</h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Net Profit = Revenue - Cost of Goods Sold
+                  {profitReport && ` • ${profitReport.start_date} to ${profitReport.end_date}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                {(['daily', 'weekly', 'monthly', 'yearly'] as ProfitReport['period'][]).map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setProfitPeriod(period)}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold capitalize transition ${
+                      profitPeriod === period
+                        ? 'bg-white text-emerald-700 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    {period}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {profitLoading ? (
+              <p className="text-sm text-slate-400">Loading profit analytics...</p>
+            ) : profitReport ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Revenue</p>
+                  <p className="mt-2 text-xl font-black text-slate-900">{formatKsh(profitReport.revenue)}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">COGS</p>
+                  <p className="mt-2 text-xl font-black text-amber-700">{formatKsh(profitReport.cogs)}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50 p-4">
+                  <p className="text-xs font-bold uppercase text-emerald-700">Net Profit</p>
+                  <p className={`mt-2 text-xl font-black ${Number(profitReport.net_profit) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {formatKsh(profitReport.net_profit)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-rose-600">Profit analytics could not be loaded.</p>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

@@ -22,6 +22,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     base_unit: product.base_unit,
     pack_size: String(product.pack_size ?? ''),
     price_per_unit: String(product.price_per_unit ?? ''),
+    cost_price: String(product.cost_price ?? ''),
     price_per_pack: String(product.price_per_pack ?? ''),
     low_stock_level: String(product.low_stock_level ?? ''),
   });
@@ -42,6 +43,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
           base_unit: form.base_unit,
           pack_size: form.pack_size ? Number(form.pack_size) : null,
           price_per_unit: Number(form.price_per_unit),
+          selling_price: Number(form.price_per_unit),
+          cost_price: Number(form.cost_price),
           price_per_pack: form.price_per_pack ? Number(form.price_per_pack) : null,
           low_stock_level: form.low_stock_level ? Number(form.low_stock_level) : 0,
         }),
@@ -70,6 +73,10 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             <label className="text-xs font-bold text-slate-600 md:col-span-2">
               Name
               <input value={form.name} onChange={(e) => handleChange('name', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            </label>
+            <label className="text-xs font-bold text-slate-600">
+              Buying price / unit
+              <input value={form.cost_price} onChange={(e) => handleChange('cost_price', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             </label>
             <label className="text-xs font-bold text-slate-600">
               Category

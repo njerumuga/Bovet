@@ -18,6 +18,7 @@ class InvoiceLineResponse(BaseModel):
     qty_entered: Decimal
     base_qty: Decimal
     unit_price: Decimal
+    cost_price: Decimal
     list_price: Decimal
     line_amount: Decimal
 

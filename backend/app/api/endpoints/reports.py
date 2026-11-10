@@ -13,7 +13,7 @@ from app.db.models.payment import Payment
 from app.db.models.user import User
 from app.schemas.dashboard import (
     CreditCollectionItem, CreditCollectionsResponse, DirectPaymentItem, PaymentBreakdownItem,
-    PaymentBreakdownResponse, ReportsSummaryResponse, TopProductItem,
+    PaymentBreakdownResponse, ReportsSummaryResponse, TopProductItem, ProfitResponse,
 )
 from app.api.deps import get_current_user
 
@@ -21,11 +21,22 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 
 @router.get("/summary", response_model=ReportsSummaryResponse)
 def get_reports_summary(
+    period: str | None = Query(None, pattern="^(daily|weekly|monthly|yearly)$"),
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    date_filter = ()
+    if period or start_date or end_date:
+        start, end = _period_dates(period or "yearly", start_date, end_date)
+        date_filter = (Invoice.invoice_date >= start, Invoice.invoice_date <= end)
     gross_sales = db.query(func.coalesce(func.sum(Invoice.total), 0))\
-        .filter(Invoice.status != 'void')\
+        .filter(Invoice.status != 'void', *date_filter)\
+        .scalar()
+    cogs = db.query(func.coalesce(func.sum(InvoiceLine.base_qty * InvoiceLine.cost_price), 0))\
+        .join(Invoice, Invoice.id == InvoiceLine.invoice_id)\
+        .filter(Invoice.status != "void", *date_filter)\
         .scalar()
     
     cash_received = db.query(func.coalesce(func.sum(Invoice.amount_paid), 0))\
@@ -80,8 +91,13 @@ def get_reports_summary(
             TopProductItem(name="Custom Cattle Feed (per Kg)", price_formatted="KSh 65", sales_amount=Decimal("0.00"), qty_sold=Decimal("0")),
         ]
 
+    revenue = Decimal(str(gross_sales or 0))
+    cogs_value = Decimal(str(cogs or 0))
     return ReportsSummaryResponse(
-        gross_sales_value=Decimal(str(gross_sales)),
+        gross_sales_value=revenue,
+        revenue=revenue,
+        cogs=cogs_value,
+        net_profit=revenue - cogs_value,
         cash_received=Decimal(str(cash_received)),
         direct_cash_sales=Decimal(str(direct_cash_sales)),
         credit_collections=Decimal(str(credit_collections)),
@@ -89,6 +105,33 @@ def get_reports_summary(
         total_customer_accounts=total_customers,
         currency="KSh",
         top_selling_products=top_items
+    )
+
+@router.get("/profit", response_model=ProfitResponse)
+def get_profit(
+    period: str = Query("daily", pattern="^(daily|weekly|monthly|yearly)$"),
+    start_date: date | None = None,
+    end_date: date | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    start, end = _period_dates(period, start_date, end_date)
+    date_filter = (Invoice.invoice_date >= start, Invoice.invoice_date <= end)
+    revenue = db.query(func.coalesce(func.sum(Invoice.total), 0)).filter(
+        Invoice.status != "void", *date_filter
+    ).scalar() or 0
+    cogs = db.query(func.coalesce(func.sum(InvoiceLine.base_qty * InvoiceLine.cost_price), 0)).join(
+        Invoice, Invoice.id == InvoiceLine.invoice_id
+    ).filter(Invoice.status != "void", *date_filter).scalar() or 0
+    revenue_value = Decimal(str(revenue))
+    cogs_value = Decimal(str(cogs))
+    return ProfitResponse(
+        period=period,
+        start_date=start,
+        end_date=end,
+        revenue=revenue_value,
+        cogs=cogs_value,
+        net_profit=revenue_value - cogs_value,
     )
 
 def _period_dates(period: str, start_date: date | None, end_date: date | None) -> tuple[date, date]:

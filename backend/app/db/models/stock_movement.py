@@ -14,6 +14,7 @@ class StockMovement(Base):
     type = Column(TEXT, nullable=False)
     qty_change = Column(NUMERIC(12,3), nullable=False)
     qty_after = Column(NUMERIC(12,3), nullable=False)
+    cost_price = Column(NUMERIC(14,2), nullable=False, default=0)
     reason = Column(TEXT, nullable=True)
     invoice_id = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("invoices.id"), nullable=True)
     created_by = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("users.id"), nullable=True)

@@ -29,6 +29,9 @@ class TopProductItem(BaseModel):
 
 class ReportsSummaryResponse(BaseModel):
     gross_sales_value: Decimal
+    revenue: Decimal = Decimal("0.00")
+    cogs: Decimal = Decimal("0.00")
+    net_profit: Decimal = Decimal("0.00")
     cash_received: Decimal
     direct_cash_sales: Decimal
     credit_collections: Decimal
@@ -36,6 +39,14 @@ class ReportsSummaryResponse(BaseModel):
     total_customer_accounts: int
     currency: str = "KSh"
     top_selling_products: List[TopProductItem] = []
+
+class ProfitResponse(BaseModel):
+    period: str
+    start_date: date
+    end_date: date
+    revenue: Decimal
+    cogs: Decimal
+    net_profit: Decimal
 
 class PaymentBreakdownItem(BaseModel):
     payment_date: date
