@@ -356,6 +356,8 @@ export const App: React.FC = () => {
 
             <InvoicePreviewModal
                 invoice={previewInvoice}
+                customers={customers}
+                invoices={invoices}
                 onClose={() => setPreviewInvoice(null)}
             />
 
