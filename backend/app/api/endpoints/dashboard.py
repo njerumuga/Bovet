@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from decimal import Decimal
 from typing import List
 from app.db.session import get_db
@@ -41,7 +41,7 @@ def get_dashboard_stats(
         ).scalar()
     credit_payments_received = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
         Payment.payment_type == "credit_collection",
-        Payment.invoice.has(Invoice.status != "void"),
+        or_(Payment.invoice_id.is_(None), Payment.invoice.has(Invoice.status != "void")),
         ).scalar()
 
     # Low stock alerts count

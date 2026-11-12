@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List, Optional
+from datetime import date
 from decimal import Decimal
 import re
 from difflib import SequenceMatcher
@@ -12,6 +13,8 @@ from app.db.models.payment import Payment
 from app.db.models.audit import AuditLog
 from app.db.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerResponse
+from app.schemas.invoice import PaymentRequest, ReceiptResponse
+from app.api.endpoints.invoices import validate_payment_reference, generate_receipt_no
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/customers", tags=["customers"])
@@ -120,6 +123,129 @@ def create_customer(
     db.commit()
     db.refresh(customer)
     return enrich_customer(customer, db)
+
+@router.post("/{id}/payment", response_model=ReceiptResponse)
+def post_customer_payment(
+        id: int,
+        req: PaymentRequest,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+):
+    customer = db.query(Customer).filter(Customer.id == id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    payment_amt = req.amount
+    if payment_amt <= 0:
+        raise HTTPException(status_code=400, detail="Payment amount must be greater than zero.")
+
+    opening_bal = Decimal(str(getattr(customer, "opening_balance", 0) or 0))
+    unpaid_invoices = db.query(Invoice).filter(
+        Invoice.customer_id == id,
+        Invoice.status != "void",
+        Invoice.balance > 0
+    ).order_by(Invoice.invoice_date.asc(), Invoice.id.asc()).all()
+
+    total_arrears = opening_bal + sum((Decimal(str(inv.balance)) for inv in unpaid_invoices), Decimal("0.00"))
+    if total_arrears <= 0:
+        raise HTTPException(status_code=400, detail="Customer has no outstanding arrears.")
+    if payment_amt > total_arrears:
+        raise HTTPException(status_code=400, detail="Payment exceeds the customer's total arrears balance.")
+
+    payment_reference = validate_payment_reference(req.payment_method, req.reference_code, db)
+
+    remaining_to_apply = payment_amt
+    primary_payment: Optional[Payment] = None
+    settled_ref_label = "Opening Book Arrears"
+
+    # 1. Deduct from opening book arrears first
+    if opening_bal > 0 and remaining_to_apply > 0:
+        opening_applied = min(remaining_to_apply, opening_bal)
+        customer.opening_balance = max(Decimal("0.00"), opening_bal - opening_applied)
+        remaining_to_apply -= opening_applied
+
+        pmt = Payment(
+            receipt_no=generate_receipt_no(db),
+            customer_id=customer.id,
+            invoice_id=None,
+            payment_date=date.today(),
+            amount=opening_applied,
+            payment_method=req.payment_method or "M-Pesa",
+            payment_type="credit_collection",
+            reference_code=payment_reference,
+            notes=req.notes or "Opening book arrears settlement",
+            posted_by=current_user.id
+        )
+        db.add(pmt)
+        db.flush()
+        primary_payment = pmt
+
+    # 2. Apply any remaining payment amount to oldest unpaid invoices
+    for inv in unpaid_invoices:
+        if remaining_to_apply <= 0:
+            break
+        inv_applied = min(remaining_to_apply, Decimal(str(inv.balance)))
+        inv.amount_paid += inv_applied
+        inv.balance = max(Decimal("0.00"), Decimal(str(inv.total)) - Decimal(str(inv.amount_paid)))
+        inv.status = "paid" if inv.balance <= 0 else "arrears"
+        remaining_to_apply -= inv_applied
+
+        pmt = Payment(
+            receipt_no=generate_receipt_no(db),
+            customer_id=customer.id,
+            invoice_id=inv.id,
+            payment_date=date.today(),
+            amount=inv_applied,
+            payment_method=req.payment_method or "M-Pesa",
+            payment_type="credit_collection",
+            reference_code=payment_reference,
+            notes=req.notes or f"Settlement for {inv.invoice_no}",
+            posted_by=current_user.id
+        )
+        db.add(pmt)
+        db.flush()
+        if primary_payment is None:
+            primary_payment = pmt
+            settled_ref_label = inv.invoice_no
+
+    new_total_arrears = max(Decimal("0.00"), total_arrears - payment_amt)
+
+    db.add(AuditLog(
+        user_id=current_user.id,
+        action="post_customer_payment",
+        entity="payment",
+        entity_id=str(primary_payment.id),
+        after_data={
+            "customer": customer.name,
+            "receipt_no": primary_payment.receipt_no,
+            "amount": float(payment_amt),
+            "method": primary_payment.payment_method,
+            "balance_remaining": float(new_total_arrears)
+        }
+    ))
+
+    db.commit()
+    db.refresh(primary_payment)
+
+    return ReceiptResponse(
+        id=primary_payment.id,
+        receipt_no=primary_payment.receipt_no,
+        invoice_id=primary_payment.invoice_id,
+        invoice_no=settled_ref_label,
+        customer_id=customer.id,
+        customer_name=customer.name,
+        customer_phone=customer.phone,
+        customer_location=customer.location,
+        payment_date=primary_payment.payment_date,
+        amount=payment_amt,
+        payment_method=primary_payment.payment_method,
+        payment_type="credit_collection",
+        reference_code=primary_payment.reference_code,
+        invoice_total=total_arrears,
+        remaining_balance=new_total_arrears,
+        notes=primary_payment.notes,
+        created_at=primary_payment.created_at
+    )
 
 @router.get("/{id}")
 def get_customer(

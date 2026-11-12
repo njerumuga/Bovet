@@ -9,7 +9,7 @@ class Payment(Base):
 
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     customer_id = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("customers.id"), nullable=False)
-    invoice_id = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("invoices.id"), nullable=False)
+    invoice_id = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("invoices.id"), nullable=True)
     payment_date = Column(DATE, nullable=False)
     amount = Column(NUMERIC(14, 2), nullable=False)
     payment_method = Column(TEXT, nullable=False, default="M-Pesa")
