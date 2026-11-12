@@ -9,8 +9,8 @@ from app.core.security import decode_token
 security = HTTPBearer(auto_error=False)
 
 def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db)
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+        db: Session = Depends(get_db)
 ) -> User:
     if not credentials:
         raise HTTPException(
@@ -22,7 +22,7 @@ def get_current_user(
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token."
+            detail="Invalid authentication token."
         )
 
     user_id = payload.get("sub")

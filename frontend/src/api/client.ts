@@ -1,8 +1,8 @@
 const configuredApiBase = (import.meta.env.VITE_API_URL || '').trim();
 const API_BASE = configuredApiBase || (
-  window.location.hostname.endsWith('.onrender.com')
-    ? 'https://bovet-api.onrender.com/api'
-    : '/api'
+    window.location.hostname.endsWith('.onrender.com')
+        ? 'https://bovet-api.onrender.com/api'
+        : '/api'
 );
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -23,12 +23,6 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
       ...options,
       headers,
     });
-
-    if (res.status === 401 && token) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.dispatchEvent(new Event('bovet:auth-expired'));
-    }
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: res.statusText }));

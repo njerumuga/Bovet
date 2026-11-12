@@ -1,8 +1,7 @@
 import jwt
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Any
+from typing import Optional
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 from app.core.config import settings
 
 ph = PasswordHasher()
@@ -20,8 +19,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if not settings.SECRET_KEY or len(settings.SECRET_KEY) < 32:
         raise RuntimeError("SECRET_KEY must be configured with at least 32 characters.")
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_MINUTES))
-    to_encode.update({"exp": expire})
+    if expires_delta is not None:
+        to_encode.update({"exp": datetime.now(timezone.utc) + expires_delta})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
     return encoded_jwt
 
@@ -29,7 +28,12 @@ def decode_token(token: str) -> Optional[dict]:
     if not settings.SECRET_KEY or len(settings.SECRET_KEY) < 32:
         return None
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"],
+            options={"verify_exp": False},
+        )
         return payload
     except Exception:
         return None
