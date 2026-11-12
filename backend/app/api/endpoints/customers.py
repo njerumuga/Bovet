@@ -30,22 +30,23 @@ def find_similar_customers(db: Session, name: str, exclude_id: Optional[int] = N
     return [
         customer for customer in customers
         if customer.id != exclude_id
-        and SequenceMatcher(None, normalized, normalize_name(customer.name)).ratio() >= 0.86
+           and SequenceMatcher(None, normalized, normalize_name(customer.name)).ratio() >= 0.86
     ]
 
 def enrich_customer(customer: Customer, db: Session) -> CustomerResponse:
     # Compute total purchases (sum of non-void invoice totals)
-    total_purchases = db.query(func.coalesce(func.sum(Invoice.total), 0))\
-        .filter(Invoice.customer_id == customer.id, Invoice.status != 'void')\
+    total_purchases = db.query(func.coalesce(func.sum(Invoice.total), 0)) \
+        .filter(Invoice.customer_id == customer.id, Invoice.status != 'void') \
         .scalar()
-    
-    # Compute current arrears balance (sum of non-void invoice balance)
-    current_arrears = db.query(func.coalesce(func.sum(Invoice.balance), 0))\
-        .filter(Invoice.customer_id == customer.id, Invoice.status != 'void')\
+
+    # Compute current arrears balance (sum of non-void invoice balance + opening balance)
+    current_arrears = db.query(func.coalesce(func.sum(Invoice.balance), 0)) \
+        .filter(Invoice.customer_id == customer.id, Invoice.status != 'void') \
         .scalar()
-    
+
+    opening_balance = Decimal(str(getattr(customer, "opening_balance", 0) or 0))
     total_purchases_dec = Decimal(str(total_purchases))
-    current_arrears_dec = Decimal(str(current_arrears))
+    current_arrears_dec = Decimal(str(current_arrears)) + opening_balance
     credit_status = "IN ARREARS" if current_arrears_dec > 0 else "CLEAR"
 
     return CustomerResponse(
@@ -56,6 +57,7 @@ def enrich_customer(customer: Customer, db: Session) -> CustomerResponse:
         email=customer.email,
         notes=customer.notes,
         status=customer.status,
+        opening_balance=opening_balance,
         total_purchases=total_purchases_dec,
         current_arrears_balance=current_arrears_dec,
         credit_status=credit_status,
@@ -65,10 +67,10 @@ def enrich_customer(customer: Customer, db: Session) -> CustomerResponse:
 
 @router.get("", response_model=List[CustomerResponse])
 def list_customers(
-    search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        search: Optional[str] = Query(None),
+        status: Optional[str] = Query(None),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     query = db.query(Customer)
     if search:
@@ -89,9 +91,9 @@ def list_customers(
 
 @router.post("", response_model=CustomerResponse)
 def create_customer(
-    req: CustomerCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        req: CustomerCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     normalized_phone = normalize_phone(req.phone)
     if len(normalized_phone) < 9:
@@ -111,6 +113,7 @@ def create_customer(
         email=req.email.strip() if req.email else None,
         notes=req.notes,
         status=req.status or "active",
+        opening_balance=req.opening_balance or Decimal("0.00"),
         created_by=current_user.id
     )
     db.add(customer)
@@ -120,18 +123,18 @@ def create_customer(
 
 @router.get("/{id}")
 def get_customer(
-    id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        id: int,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     customer = db.query(Customer).filter(Customer.id == id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
+
     c_resp = enrich_customer(customer, db)
     invoices = db.query(Invoice).filter(Invoice.customer_id == id).order_by(Invoice.invoice_date.desc()).all()
     payments = db.query(Payment).filter(Payment.customer_id == id).order_by(Payment.payment_date.desc(), Payment.id.desc()).all()
-    
+
     return {
         "customer": c_resp,
         "invoices": [
@@ -166,10 +169,10 @@ def get_customer(
 
 @router.put("/{id}", response_model=CustomerResponse)
 def update_customer(
-    id: int,
-    req: CustomerUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        id: int,
+        req: CustomerUpdate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     customer = db.query(Customer).filter(Customer.id == id).first()
     if not customer:
@@ -198,6 +201,8 @@ def update_customer(
         customer.notes = req.notes
     if req.status is not None:
         customer.status = req.status
+    if req.opening_balance is not None:
+        customer.opening_balance = req.opening_balance
 
     if customer.status != previous_status:
         db.add(AuditLog(
@@ -214,9 +219,9 @@ def update_customer(
 
 @router.delete("/{id}")
 def delete_customer(
-    id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        id: int,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     customer = db.query(Customer).filter(Customer.id == id).first()
     if not customer:

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, TEXT, DateTime, ForeignKey, CheckConstraint, Index
+from sqlalchemy import Column, Integer, BigInteger, TEXT, DateTime, NUMERIC, ForeignKey, CheckConstraint, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -15,6 +15,7 @@ class Customer(Base):
     location = Column(TEXT, nullable=False)
     email = Column(TEXT)
     notes = Column(TEXT)
+    opening_balance = Column(NUMERIC(12, 2), nullable=False, default=0, server_default="0")
     status = Column(TEXT, nullable=False, default='active')
     created_by = Column(BigInteger().with_variant(Integer, "sqlite"), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

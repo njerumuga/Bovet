@@ -18,35 +18,40 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     # Total sales revenue (sum of non-void invoice totals)
-    total_sales = db.query(func.coalesce(func.sum(Invoice.total), 0))\
-        .filter(Invoice.status != 'void')\
+    total_sales = db.query(func.coalesce(func.sum(Invoice.total), 0)) \
+        .filter(Invoice.status != 'void') \
         .scalar()
-    
-    # Total pending arrears (sum of non-void invoice balance)
-    pending_arrears = db.query(func.coalesce(func.sum(Invoice.balance), 0))\
-        .filter(Invoice.status != 'void')\
+
+    # Total pending arrears (sum of non-void invoice balance + active customer opening balances)
+    pending_arrears = db.query(func.coalesce(func.sum(Invoice.balance), 0)) \
+        .filter(Invoice.status != 'void') \
         .scalar()
+    customer_opening_balances = db.query(func.coalesce(func.sum(Customer.opening_balance), 0)) \
+        .filter(Customer.status == 'active') \
+        .scalar()
+    pending_arrears = Decimal(str(pending_arrears)) + Decimal(str(customer_opening_balances))
+
     total_cash_received = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
         Payment.payment_type == "direct_sale",
         Payment.invoice.has(Invoice.status != "void"),
-    ).scalar()
+        ).scalar()
     credit_payments_received = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
         Payment.payment_type == "credit_collection",
         Payment.invoice.has(Invoice.status != "void"),
-    ).scalar()
+        ).scalar()
 
     # Low stock alerts count
-    low_stock_count = db.query(Product)\
-        .filter(Product.status == 'active', Product.qty_on_hand <= Product.low_stock_level)\
+    low_stock_count = db.query(Product) \
+        .filter(Product.status == 'active', Product.qty_on_hand <= Product.low_stock_level) \
         .count()
 
     # Active customers count
-    active_customers = db.query(Customer)\
-        .filter(Customer.status == 'active')\
+    active_customers = db.query(Customer) \
+        .filter(Customer.status == 'active') \
         .count()
 
     # Weekly chart data points
@@ -76,8 +81,8 @@ def get_dashboard_stats(
 
 @router.get("/recent-sales", response_model=List[InvoiceResponse])
 def get_recent_sales(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     invoices = db.query(Invoice).order_by(Invoice.invoice_date.desc(), Invoice.id.desc()).limit(10).all()
     return [format_invoice(inv) for inv in invoices]

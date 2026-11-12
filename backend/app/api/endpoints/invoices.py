@@ -45,7 +45,15 @@ def validate_payment_reference(
     if not reference:
         return None
 
-    if method in {"m-pesa", "mpesa"}:
+INSERT INTO users (name, email, password_hash, role, status)
+VALUES (
+  'John',
+  'johntegesh@gmail.com',
+  '$argon2id$v=19$m=65536,t=3,p=4$REPLACE_WITH_HASH_FROM_PYTHON',
+  'admin',
+  'active'
+)
+ON CONFLICT (email) DO NOTHING;    if method in {"m-pesa", "mpesa"}:
         normalized_code = reference.upper()
         if not re.fullmatch(r"[A-Z0-9]{10}", normalized_code):
             raise HTTPException(

@@ -10,6 +10,7 @@ class CustomerBase(BaseModel):
     email: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = "active"
+    opening_balance: Optional[Decimal] = Decimal("0.00")
 
 class CustomerCreate(CustomerBase):
     pass
@@ -21,12 +22,13 @@ class CustomerUpdate(BaseModel):
     email: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+    opening_balance: Optional[Decimal] = None
 
 class CustomerResponse(CustomerBase):
     id: int
     total_purchases: Decimal = Decimal("0.00")
     current_arrears_balance: Decimal = Decimal("0.00")
-    credit_status: str = "CLEAR" # CLEAR, IN ARREARS
+    credit_status: str = "CLEAR"  # CLEAR, IN ARREARS
     created_at: datetime
     updated_at: datetime
 
