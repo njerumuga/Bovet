@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, desc
+from sqlalchemy import func, or_
 from typing import List, Optional
 from datetime import date, datetime
 from decimal import Decimal
 import re
-from io import BytesIO
 
 try:
     from weasyprint import HTML
@@ -27,13 +27,31 @@ from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
+
+class WalkInLineCreate(BaseModel):
+    product_id: int
+    sell_unit: Optional[str] = None
+    qty_entered: Decimal
+    unit_price: Decimal
+
+
+class WalkInReceiptCreate(BaseModel):
+    buyer_name: Optional[str] = None
+    invoice_date: Optional[date] = None
+    lines: List[WalkInLineCreate]
+    discount: Optional[Decimal] = Decimal("0.00")
+    payment_method: str = "Cash"
+    reference_code: Optional[str] = None
+
+
 def normalize_payment_reference(value: Optional[str]) -> str:
     return re.sub(r"[^a-z0-9]", "", (value or "").strip().lower())
 
+
 def validate_payment_reference(
-    payment_method: Optional[str],
-    reference_code: Optional[str],
-    db: Session,
+        payment_method: Optional[str],
+        reference_code: Optional[str],
+        db: Session,
 ) -> Optional[str]:
     method = (payment_method or "M-Pesa").strip().lower()
     reference = (reference_code or "").strip()
@@ -67,20 +85,45 @@ def validate_payment_reference(
         )
     return reference
 
+
+def get_or_create_walkin_customer(db: Session) -> Customer:
+    walkin = db.query(Customer).filter(Customer.phone == "WALK-IN").first()
+    if not walkin:
+        walkin = Customer(
+            name="Walk-In Customer",
+            phone="WALK-IN",
+            location="Counter Cash Sale",
+            status="walkin",
+        )
+        db.add(walkin)
+        db.commit()
+        db.refresh(walkin)
+    return walkin
+
+
 def format_receipt(pmt: Payment) -> ReceiptResponse:
     inv = pmt.invoice
     cust = pmt.customer
     inv_total = inv.total if inv else pmt.amount
     rem_bal = inv.balance if inv else Decimal("0.00")
-    
+
+    display_name = cust.name if cust else "Valued Farmer"
+    display_phone = cust.phone if cust else ""
+    if cust and cust.phone == "WALK-IN":
+        display_phone = "Walk-In Counter Sale"
+        if pmt.notes and pmt.notes.startswith("Buyer: "):
+            buyer_part = pmt.notes.split(" | ")[0].replace("Buyer: ", "").strip()
+            if buyer_part:
+                display_name = buyer_part
+
     return ReceiptResponse(
         id=pmt.id,
         receipt_no=pmt.receipt_no,
         invoice_id=pmt.invoice_id,
         invoice_no=inv.invoice_no if inv else None,
         customer_id=pmt.customer_id,
-        customer_name=cust.name if cust else "Valued Farmer",
-        customer_phone=cust.phone if cust else "",
+        customer_name=display_name,
+        customer_phone=display_phone,
         customer_location=cust.location if cust else "",
         payment_date=pmt.payment_date,
         amount=pmt.amount,
@@ -92,6 +135,7 @@ def format_receipt(pmt: Payment) -> ReceiptResponse:
         notes=pmt.notes,
         created_at=pmt.created_at
     )
+
 
 def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceResponse:
     lines_resp = [
@@ -122,7 +166,7 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
         direct_amount_paid = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
             Payment.invoice_id == inv.id,
             Payment.payment_type == "direct_sale",
-        ).scalar() or Decimal("0.00")
+            ).scalar() or Decimal("0.00")
         latest_payment = db.query(Payment).filter(Payment.invoice_id == inv.id).order_by(Payment.id.desc()).first()
         if latest_payment:
             latest_receipt = format_receipt(latest_payment)
@@ -151,6 +195,7 @@ def format_invoice(inv: Invoice, db: Optional[Session] = None) -> InvoiceRespons
         latest_receipt=latest_receipt
     )
 
+
 def generate_invoice_no(db: Session) -> str:
     numbers = [
         int(match.group(1))
@@ -161,6 +206,7 @@ def generate_invoice_no(db: Session) -> str:
     while db.query(Invoice.id).filter(Invoice.invoice_no == f"INV-{next_num}").first():
         next_num += 1
     return f"INV-{next_num}"
+
 
 def generate_receipt_no(db: Session) -> str:
     numbers = [
@@ -232,9 +278,9 @@ def render_invoice_pdf(invoice: Invoice) -> bytes:
 
 @router.get("/receipts/{receipt_id}/pdf")
 def get_receipt_pdf(
-    receipt_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+        receipt_id: int,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
     receipt = db.query(Payment).filter(Payment.id == receipt_id).first()
     if not receipt:
@@ -266,11 +312,11 @@ def get_receipt_pdf(
 
 @router.get("", response_model=List[InvoiceResponse])
 def list_invoices(
-    search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    customer_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        search: Optional[str] = Query(None),
+        status: Optional[str] = Query(None),
+        customer_id: Optional[int] = Query(None),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     query = db.query(Invoice).join(Customer)
     if search:
@@ -296,11 +342,137 @@ def list_invoices(
     invoices = query.order_by(Invoice.invoice_date.desc(), Invoice.id.desc()).all()
     return [format_invoice(inv, db) for inv in invoices]
 
+
+@router.post("/walk-in-receipt", response_model=ReceiptResponse)
+def create_walkin_receipt(
+        req: WalkInReceiptCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
+    if not req.lines:
+        raise HTTPException(status_code=400, detail="Add at least one item to issue a receipt.")
+
+    payment_reference = validate_payment_reference(req.payment_method, req.reference_code, db)
+    walkin_customer = get_or_create_walkin_customer(db)
+
+    subtotal = Decimal("0.00")
+    line_objects = []
+    item_summaries = []
+
+    for item in req.lines:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if not product or product.status != "active":
+            raise HTTPException(status_code=404, detail=f"Product ID {item.product_id} not found")
+
+        qty = item.qty_entered
+        if qty <= 0:
+            raise HTTPException(status_code=400, detail="Quantity must be greater than zero.")
+        if product.qty_on_hand < qty:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock for {product.name}. Available {product.qty_on_hand}, requested {qty}.",
+            )
+
+        unit_label = item.sell_unit or product.base_unit
+        line_amount = (qty * item.unit_price).quantize(Decimal("0.01"))
+        subtotal += line_amount
+        item_summaries.append(f"{qty:g} {unit_label} {product.name} (KSh {line_amount:,.2f})")
+
+        line_obj = InvoiceLine(
+            product_id=product.id,
+            description=product.name,
+            sell_unit=unit_label,
+            qty_entered=qty,
+            base_qty=qty,
+            unit_price=item.unit_price,
+            cost_price=product.cost_price,
+            list_price=product.price_per_unit,
+            line_amount=line_amount,
+        )
+        line_objects.append((line_obj, product, qty))
+
+    discount = req.discount or Decimal("0.00")
+    total = max(Decimal("0.00"), subtotal - discount)
+    sale_date = req.invoice_date or date.today()
+
+    buyer_clean = (req.buyer_name or "").strip()
+    items_text = "Items: " + ", ".join(item_summaries)
+    receipt_notes = f"Buyer: {buyer_clean} | {items_text}" if buyer_clean else items_text
+
+    invoice = Invoice(
+        invoice_no=generate_invoice_no(db),
+        kind="sale",
+        customer_id=walkin_customer.id,
+        invoice_date=sale_date,
+        subtotal=subtotal,
+        discount=discount,
+        total=total,
+        amount_paid=total,
+        balance=Decimal("0.00"),
+        is_credit=False,
+        status="paid",
+        notes=receipt_notes,
+        created_by=current_user.id,
+    )
+    db.add(invoice)
+    db.commit()
+    db.refresh(invoice)
+
+    for line_obj, product, qty in line_objects:
+        line_obj.invoice_id = invoice.id
+        db.add(line_obj)
+
+        product.qty_on_hand -= qty
+        mov = StockMovement(
+            product_id=product.id,
+            type="sale",
+            qty_change=-qty,
+            qty_after=product.qty_on_hand,
+            cost_price=product.cost_price,
+            reason=f"Walk-in cash sale {invoice.invoice_no}",
+            invoice_id=invoice.id,
+            created_by=current_user.id,
+        )
+        db.add(mov)
+
+    pmt = Payment(
+        receipt_no=generate_receipt_no(db),
+        customer_id=walkin_customer.id,
+        invoice_id=invoice.id,
+        payment_date=sale_date,
+        amount=total,
+        payment_method=req.payment_method or "Cash",
+        payment_type="direct_sale",
+        reference_code=payment_reference,
+        notes=receipt_notes,
+        posted_by=current_user.id,
+    )
+    db.add(pmt)
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="walkin_cash_receipt",
+        entity="payment",
+        entity_id=pmt.receipt_no,
+        after_data={
+            "receipt_no": pmt.receipt_no,
+            "buyer": buyer_clean or "Walk-In Customer",
+            "total": float(total),
+            "method": pmt.payment_method,
+        },
+    )
+    db.add(audit)
+
+    db.commit()
+    db.refresh(pmt)
+    return format_receipt(pmt)
+
+
 @router.post("", response_model=InvoiceResponse)
 def create_invoice(
-    req: InvoiceCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        req: InvoiceCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     customer = db.query(Customer).filter(Customer.id == req.customer_id).first()
     if not customer or customer.status != "active":
@@ -427,11 +599,12 @@ def create_invoice(
     db.refresh(invoice)
     return format_invoice(invoice, db)
 
+
 @router.get("/{id}", response_model=InvoiceResponse)
 def get_invoice(
-    id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        id: int,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     inv = db.query(Invoice).filter(Invoice.id == id).first()
     if not inv:
@@ -441,9 +614,9 @@ def get_invoice(
 
 @router.get("/{id}/pdf")
 def get_invoice_pdf(
-    id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+        id: int,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
     inv = db.query(Invoice).filter(Invoice.id == id).first()
     if not inv:
@@ -455,10 +628,10 @@ def get_invoice_pdf(
 
 @router.post("/{id}/payment", response_model=InvoiceResponse)
 def post_payment(
-    id: int,
-    req: PaymentRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        id: int,
+        req: PaymentRequest,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     inv = db.query(Invoice).filter(Invoice.id == id).first()
     if not inv:
@@ -518,12 +691,13 @@ def post_payment(
     db.refresh(inv)
     return format_invoice(inv, db)
 
+
 @router.post("/{id}/void", response_model=InvoiceResponse)
 def void_invoice(
-    id: int,
-    reason: Optional[str] = "Customer return / cancelled",
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        id: int,
+        reason: Optional[str] = "Customer return / cancelled",
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     inv = db.query(Invoice).filter(Invoice.id == id).first()
     if not inv:
@@ -572,10 +746,11 @@ def void_invoice(
     db.refresh(inv)
     return format_invoice(inv, db)
 
+
 @router.get("/receipts/all", response_model=List[ReceiptResponse])
 def list_receipts(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
 ):
     payments = db.query(Payment).order_by(Payment.id.desc()).all()
     return [format_receipt(p) for p in payments]

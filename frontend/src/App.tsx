@@ -10,6 +10,7 @@ import { InventoryView } from './features/products/InventoryView';
 import { ReportsView } from './features/reports/ReportsView';
 import { AccountSettingsView } from './features/auth/AccountSettingsView';
 import { NewSaleModal } from './features/invoices/NewSaleModal';
+import { WalkInSaleModal } from './features/invoices/WalkInSaleModal';
 import { InvoicePreviewModal } from './features/invoices/InvoicePreviewModal';
 import { PaymentModal } from './features/invoices/PaymentModal';
 import { AddCustomerModal } from './features/customers/AddCustomerModal';
@@ -56,6 +57,7 @@ export const App: React.FC = () => {
 
     // Modals state
     const [isNewSaleOpen, setIsNewSaleOpen] = useState(false);
+    const [isWalkInOpen, setIsWalkInOpen] = useState(false);
     const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
     const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
     const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
@@ -245,6 +247,7 @@ export const App: React.FC = () => {
                     searchTerm={searchTerm}
                     onSearchChange={setSearchTerm}
                     onOpenNewSale={() => setIsNewSaleOpen(true)}
+                    onOpenWalkInSale={() => setIsWalkInOpen(true)}
                     onRefresh={loadData}
                     notifications={notifications}
                 />
@@ -346,6 +349,16 @@ export const App: React.FC = () => {
             </div>
 
             {/* Modals */}
+            <WalkInSaleModal
+                isOpen={isWalkInOpen}
+                onClose={() => setIsWalkInOpen(false)}
+                products={products}
+                onReceiptIssued={(generatedReceipt) => {
+                    loadData();
+                    setReceipt(generatedReceipt);
+                }}
+            />
+
             <NewSaleModal
                 isOpen={isNewSaleOpen}
                 onClose={() => setIsNewSaleOpen(false)}
