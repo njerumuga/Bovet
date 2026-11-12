@@ -93,7 +93,7 @@ def get_or_create_walkin_customer(db: Session) -> Customer:
             name="Walk-In Customer",
             phone="WALK-IN",
             location="Counter Cash Sale",
-            status="walkin",
+            status="inactive",
         )
         db.add(walkin)
         db.commit()
