@@ -35,8 +35,8 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
           .reduce((sum, inv) => sum + Number(inv.balance || 0), 0);
 
   const previousBalance = Math.max(0, cumulativeArrears - thisInvoiceBalance);
-  const totalBalanceDue = previousBalance + thisInvoiceBalance;
-  const isPaid = invoice.status === 'PAID' || totalBalanceDue === 0;
+  const totalArrearsCalculated = previousBalance + thisInvoiceBalance;
+  const isPaid = invoice.status === 'PAID' && totalArrearsCalculated === 0;
 
   return (
       <div className="print-document fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
@@ -77,10 +77,10 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                   <p className="text-xs text-slate-600 font-semibold">Dealers in Animal Feeds, Mineral Salts and Supplements</p>
                   <p className="text-[11px] text-slate-500">P.O. Box 1540-00232, Ruiru | Tel: +254 719 220 452</p>
                   <p className="text-[11px] text-emerald-700 font-bold">
-                    Email: bovetagriventures@gmail.com | Paybill: 400200 • Acc: 40019435
+                    Email: bovetagriventures@gmail.com | Paybill: 400200 • Account: 40019435
                   </p>
                   <p className="text-[11px] text-slate-700 font-bold">
-                    Co-operative Bank Acc: 01192943536900
+                    Co-operative Bank: 01192943536900
                   </p>
                 </div>
               </div>
@@ -115,7 +115,7 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
               </div>
             </div>
 
-            {/* Line Items Table */}
+            {/* Line Items + Existing Balance Table */}
             <div className="border border-slate-200 rounded-xl overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 font-bold text-slate-600 border-b border-slate-200">
@@ -130,22 +130,37 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                 <tbody className="divide-y divide-slate-100">
                 {(invoice.lines || []).map((line, idx) => (
                     <tr key={idx}>
-                      <td className="p-2.5 font-bold text-slate-900">{line.product_name || `Product SKU #${line.product_id}`}</td>
+                      <td className="p-2.5 font-bold text-slate-900">
+                        {line.product_name || `Product SKU #${line.product_id}`}
+                      </td>
                       <td className="p-2.5 text-center text-slate-500">{line.sell_unit}</td>
                       <td className="p-2.5 text-right font-extrabold text-slate-900">{line.qty_entered}</td>
                       <td className="p-2.5 text-right">{formatKsh(line.unit_price)}</td>
                       <td className="p-2.5 text-right font-black text-slate-900">{formatKsh(line.line_amount)}</td>
                     </tr>
                 ))}
+                {previousBalance > 0 && (
+                    <tr className="bg-amber-50/70">
+                      <td className="p-2.5 font-bold text-amber-900">
+                        Existing Balance / Previous Arrears (B/F)
+                      </td>
+                      <td className="p-2.5 text-center text-slate-400">-</td>
+                      <td className="p-2.5 text-right text-slate-400">-</td>
+                      <td className="p-2.5 text-right text-slate-400">-</td>
+                      <td className="p-2.5 text-right font-black text-amber-700">
+                        {formatKsh(previousBalance)}
+                      </td>
+                    </tr>
+                )}
                 </tbody>
               </table>
             </div>
 
-            {/* Totals & Cumulative Balance Breakdown */}
+            {/* Totals & Total Arrears Breakdown */}
             <div className="flex justify-end text-xs">
               <div className="w-72 space-y-1.5 border-t border-slate-200 pt-2.5">
                 <div className="flex justify-between font-semibold text-slate-600">
-                  <span>Subtotal:</span>
+                  <span>New Items Subtotal:</span>
                   <span>{formatKsh(invoice.subtotal)}</span>
                 </div>
                 {Number(invoice.discount) > 0 && (
@@ -154,8 +169,8 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                       <span>{formatKsh(invoice.discount)}</span>
                     </div>
                 )}
-                <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-200 pt-1.5">
-                  <span>Invoice Total:</span>
+                <div className="flex justify-between font-bold text-slate-900 border-t border-slate-200 pt-1.5">
+                  <span>New Invoice Total:</span>
                   <span>{formatKsh(invoice.total)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-emerald-600">
@@ -163,35 +178,31 @@ export const InvoicePreviewModal: React.FC<InvoicePreviewModalProps> = ({
                   <span>{formatKsh(invoice.amount_paid)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-slate-700">
-                  <span>This Invoice Balance:</span>
-                  <span>{formatKsh(thisInvoiceBalance)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-slate-700">
-                  <span>Previous Balance (Arrears B/F):</span>
+                  <span>Existing Balance (Previous Arrears):</span>
                   <span>{formatKsh(previousBalance)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-black text-amber-600 border-t border-slate-200 pt-1.5">
-                  <span>Total Balance Due:</span>
-                  <span>{formatKsh(totalBalanceDue)}</span>
+                  <span>Total Arrears Calculated:</span>
+                  <span>{formatKsh(totalArrearsCalculated)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Payment Details Block */}
+            {/* Official Payment Details */}
             <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1.5">
               <div className="font-black text-emerald-900 uppercase tracking-wider text-[11px]">
-                Official Payment Details
+                Payment Details
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800">
-                <div className="bg-white/80 rounded-lg px-3 py-2 border border-emerald-100">
+                <div className="bg-white/90 rounded-lg px-3 py-2 border border-emerald-100">
                   <div className="text-[10px] font-bold text-slate-500 uppercase">M-Pesa Paybill</div>
                   <div className="font-black text-slate-900">Paybill: 400200</div>
                   <div className="font-extrabold text-emerald-700">Account: 40019435</div>
                 </div>
-                <div className="bg-white/80 rounded-lg px-3 py-2 border border-emerald-100">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase">Bank Transfer (Co-operative Bank)</div>
-                  <div className="font-black text-slate-900">Co-operative Bank</div>
-                  <div className="font-extrabold text-emerald-700">Account: 01192943536900</div>
+                <div className="bg-white/90 rounded-lg px-3 py-2 border border-emerald-100">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Co-operative Bank</div>
+                  <div className="font-black text-slate-900">Cooperative</div>
+                  <div className="font-extrabold text-emerald-700">01192943536900</div>
                 </div>
               </div>
             </div>
