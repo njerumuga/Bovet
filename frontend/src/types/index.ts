@@ -15,6 +15,7 @@ export interface Customer {
   email?: string;
   notes?: string;
   status: string;
+  opening_balance?: number | string;
   total_purchases: number | string;
   current_arrears_balance: number | string;
   credit_status: string;
